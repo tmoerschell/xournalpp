@@ -369,7 +369,7 @@ void LoadHandler::parseBgPixmap() {
     // in case of a cloned background image, filename is a string representation of the page number from which the image
     // is cloned
 
-    if (!strcmp(domain, "absolute") || (!strcmp(domain, "attach") && this->isGzFile)) {
+    if (domain == nullptr || !strcmp(domain, "absolute") || (!strcmp(domain, "attach") && this->isGzFile)) {
         fs::path fileToLoad;
         if (!strcmp(domain, "attach")) {
             fileToLoad = this->filepath;
@@ -456,7 +456,7 @@ void LoadHandler::parseBgPdf() {
                 pdfFilename = fs::u8path(sFilename);
             }
 
-            if (!strcmp("absolute", domain))  // Absolute OR relative path
+            if (domain == nullptr || !strcmp("absolute", domain))  // Absolute OR relative path
             {
                 if (pdfFilename.is_relative()) {
                     pdfFilename = xournalFilepath.remove_filename() / pdfFilename;
@@ -514,7 +514,10 @@ void LoadHandler::parsePage() {
 
         const char* type = LoadHandlerHelper::getAttrib("type", false, this);
 
-        if (strcmp("solid", type) == 0) {
+        if (type == nullptr) {
+            error("%s", FC(_F("Background type not specified on page {1}") % 
+                  std::distance(pages.begin(), std::find(pages.begin(), pages.end(), page))));
+        } else if (strcmp("solid", type) == 0) {
             parseBgSolid();
         } else if (strcmp("pixmap", type) == 0) {
             parseBgPixmap();
@@ -629,7 +632,9 @@ void LoadHandler::parseStroke() {
 
     const char* tool = LoadHandlerHelper::getAttrib("tool", false, this);
 
-    if (strcmp("eraser", tool) == 0) {
+    if (tool == nullptr) {
+        g_warning("Tool not specified, assuming pen");
+    } else if (strcmp("eraser", tool) == 0) {
         stroke->setToolType(StrokeTool::ERASER);
     } else if (strcmp("pen", tool) == 0) {
         stroke->setToolType(StrokeTool::PEN);
@@ -665,11 +670,15 @@ void LoadHandler::parseText() {
     this->text->setY(y);
 
     XojFont& f = text->getFont();
-    f.setName(sFont);
+    if (sFont) {
+        f.setName(sFont);
+    }
     f.setSize(fontSize);
     const char* sColor = LoadHandlerHelper::getAttrib("color", false, this);
     Color color{0U};
-    LoadHandlerHelper::parseColor(sColor, color, this);
+    if (sColor) {
+        LoadHandlerHelper::parseColor(sColor, color, this);
+    }
     text->setColor(color);
 
     const char* fn = LoadHandlerHelper::getAttrib("fn", true, this);
@@ -712,11 +721,6 @@ void LoadHandler::parseTexImage() {
     double bottom = LoadHandlerHelper::getAttribDouble("bottom", this);
 
     const char* imText = LoadHandlerHelper::getAttrib("text", false, this);
-    const char* compatibilityTest = LoadHandlerHelper::getAttrib("texlength", true, this);
-    auto imTextLen = strlen(imText);
-    if (compatibilityTest != nullptr) {
-        imTextLen = LoadHandlerHelper::getAttribSizeT("texlength", this);
-    }
 
     this->teximage = new TexImage();
     this->layer->addElement(this->teximage);
@@ -725,7 +729,14 @@ void LoadHandler::parseTexImage() {
     this->teximage->setWidth(right - left);
     this->teximage->setHeight(bottom - top);
 
-    this->teximage->setText(string(imText, imTextLen));
+    if (imText) {
+        const char* compatibilityTest = LoadHandlerHelper::getAttrib("texlength", true, this);
+        auto imTextLen = strlen(imText);
+        if (compatibilityTest != nullptr) {
+            imTextLen = LoadHandlerHelper::getAttribSizeT("texlength", this);
+        }
+        this->teximage->setText(string(imText, imTextLen));
+    }
 }
 
 void LoadHandler::parseAttachment() {
@@ -735,6 +746,9 @@ void LoadHandler::parseAttachment() {
     }
     const char* path = LoadHandlerHelper::getAttrib("path", false, this);
 
+    if (path == nullptr) {
+        return;
+    }
     auto readResult = readZipAttachment(path);
     if (!readResult) {
         return;
@@ -790,6 +804,10 @@ void LoadHandler::parseLayer() {
  */
 void LoadHandler::parseAudio() {
     const char* filename = LoadHandlerHelper::getAttrib("fn", false, this);
+    if (filename == nullptr) {
+        error("Audio filename not provided.");
+        return;
+    }
 
     GFileIOStream* fileStream = nullptr;
     xoj::util::GObjectSPtr<GFile> tmpFile(g_file_new_tmp("xournal_audio_XXXXXX.tmp", &fileStream, nullptr),
