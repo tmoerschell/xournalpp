@@ -422,7 +422,7 @@ auto MainWindow::setFullscreen(bool enabled) const -> void {
 auto MainWindow::getXournal() const -> XournalView* { return xournal.get(); }
 
 auto MainWindow::windowStateEventCallback(GtkWidget* window, GdkEventWindowState* event, MainWindow* win) -> bool {
-    win->setMaximized(gtk_window_is_maximized(GTK_WINDOW(window)));
+    win->setMaximized(event->new_window_state & GdkWindowState::GDK_WINDOW_STATE_MAXIMIZED);
 
     return false;
 }
