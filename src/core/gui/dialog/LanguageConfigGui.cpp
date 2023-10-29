@@ -78,7 +78,6 @@ void LanguageConfigGui::saveSettings() {
     auto pref = (pos == 0) ? "" : availableLocales[pos];
 
     settings->setPreferredLocale(pref);
-    settings->customSettingsChanged();
 #ifdef _WIN32
     _putenv_s("LANGUAGE", this->settings->getPreferredLocale().c_str());
 #else

@@ -582,11 +582,6 @@ public:
     SElement& getCustomElement(const std::string& name);
 
     /**
-     * Call this after you have done all custom settings changes
-     */
-    void customSettingsChanged();
-
-    /**
      * Do not save settings until transactionEnd() is called
      */
     void transactionStart();

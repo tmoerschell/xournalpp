@@ -1574,8 +1574,6 @@ auto Settings::getSelectedToolbar() const -> string const& { return this->select
 
 auto Settings::getCustomElement(const string& name) -> SElement& { return this->data[name]; }
 
-void Settings::customSettingsChanged() {}
-
 auto Settings::getButtonConfig(unsigned int id) -> ButtonConfig* {
     if (id >= this->buttonConfig.size()) {
         g_error("Settings::getButtonConfig try to get id=%i out of range!", id);

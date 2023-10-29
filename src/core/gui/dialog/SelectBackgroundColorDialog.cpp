@@ -113,6 +113,4 @@ void SelectBackgroundColorDialog::storeLastUsedValuesInSettings(GdkRGBA color) {
         el.setIntHex(settingName, int(uint32_t(Util::GdkRGBA_to_argb(lastBackgroundColors[i]))));
         g_free(settingName);
     }
-
-    settings->customSettingsChanged();
 }

@@ -474,8 +474,6 @@ void ToolHandler::saveSettings() const {
             }
         }
     }
-
-    settings->customSettingsChanged();
 }
 
 void ToolHandler::loadSettings() {
