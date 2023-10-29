@@ -1245,97 +1245,35 @@ auto Settings::isPressureSensitivity() const -> bool { return this->pressureSens
 
 auto Settings::isZoomGesturesEnabled() const -> bool { return this->zoomGesturesEnabled; }
 
-void Settings::setZoomGesturesEnabled(bool enable) {
-    if (this->zoomGesturesEnabled == enable) {
-        return;
-    }
-    this->zoomGesturesEnabled = enable;
-    save();
-}
+void Settings::setZoomGesturesEnabled(bool enable) { this->zoomGesturesEnabled = enable; }
 
 auto Settings::isSidebarOnRight() const -> bool { return this->sidebarOnRight; }
 
-void Settings::setSidebarOnRight(bool right) {
-    if (this->sidebarOnRight == right) {
-        return;
-    }
-
-    this->sidebarOnRight = right;
-
-    save();
-}
+void Settings::setSidebarOnRight(bool right) { this->sidebarOnRight = right; }
 
 auto Settings::isScrollbarOnLeft() const -> bool { return this->scrollbarOnLeft; }
 
-void Settings::setScrollbarOnLeft(bool right) {
-    if (this->scrollbarOnLeft == right) {
-        return;
-    }
-
-    this->scrollbarOnLeft = right;
-
-    save();
-}
+void Settings::setScrollbarOnLeft(bool right) { this->scrollbarOnLeft = right; }
 
 auto Settings::isMenubarVisible() const -> bool { return this->menubarVisible; }
 
-void Settings::setMenubarVisible(bool visible) {
-    if (this->menubarVisible == visible) {
-        return;
-    }
-
-    this->menubarVisible = visible;
-
-    save();
-}
+void Settings::setMenubarVisible(bool visible) { this->menubarVisible = visible; }
 
 const bool Settings::isFilepathInTitlebarShown() const { return this->filepathShownInTitlebar; }
 
-void Settings::setFilepathInTitlebarShown(const bool shown) {
-    if (this->filepathShownInTitlebar == shown) {
-        return;
-    }
-
-    this->filepathShownInTitlebar = shown;
-
-    save();
-}
+void Settings::setFilepathInTitlebarShown(const bool shown) { this->filepathShownInTitlebar = shown; }
 
 const bool Settings::isPageNumberInTitlebarShown() const { return this->pageNumberShownInTitlebar; }
 
-void Settings::setPageNumberInTitlebarShown(const bool shown) {
-    if (this->pageNumberShownInTitlebar == shown) {
-        return;
-    }
-
-    this->pageNumberShownInTitlebar = shown;
-
-    save();
-}
+void Settings::setPageNumberInTitlebarShown(const bool shown) { this->pageNumberShownInTitlebar = shown; }
 
 auto Settings::getAutosaveTimeout() const -> int { return this->autosaveTimeout; }
 
-void Settings::setAutosaveTimeout(int autosave) {
-    if (this->autosaveTimeout == autosave) {
-        return;
-    }
-
-    this->autosaveTimeout = autosave;
-
-    save();
-}
+void Settings::setAutosaveTimeout(int autosave) { this->autosaveTimeout = autosave; }
 
 auto Settings::isAutosaveEnabled() const -> bool { return this->autosaveEnabled; }
 
-void Settings::setAutosaveEnabled(bool autosave) {
-    if (this->autosaveEnabled == autosave) {
-        return;
-    }
-
-    this->autosaveEnabled = autosave;
-
-    save();
-}
+void Settings::setAutosaveEnabled(bool autosave) { this->autosaveEnabled = autosave; }
 
 auto Settings::getAddVerticalSpace() const -> bool { return this->addVerticalSpace; }
 
@@ -1343,23 +1281,11 @@ void Settings::setAddVerticalSpace(bool space) { this->addVerticalSpace = space;
 
 auto Settings::getAddVerticalSpaceAmountAbove() const -> int { return this->addVerticalSpaceAmountAbove; }
 
-void Settings::setAddVerticalSpaceAmountAbove(int pixels) {
-    if (this->addVerticalSpaceAmountAbove == pixels) {
-        return;
-    }
-
-    this->addVerticalSpaceAmountAbove = pixels;
-}
+void Settings::setAddVerticalSpaceAmountAbove(int pixels) { this->addVerticalSpaceAmountAbove = pixels; }
 
 auto Settings::getAddVerticalSpaceAmountBelow() const -> int { return this->addVerticalSpaceAmountBelow; }
 
-void Settings::setAddVerticalSpaceAmountBelow(int pixels) {
-    if (this->addVerticalSpaceAmountBelow == pixels) {
-        return;
-    }
-
-    this->addVerticalSpaceAmountBelow = pixels;
-}
+void Settings::setAddVerticalSpaceAmountBelow(int pixels) { this->addVerticalSpaceAmountBelow = pixels; }
 
 
 auto Settings::getAddHorizontalSpace() const -> bool { return this->addHorizontalSpace; }
@@ -1368,33 +1294,15 @@ void Settings::setAddHorizontalSpace(bool space) { this->addHorizontalSpace = sp
 
 auto Settings::getAddHorizontalSpaceAmountRight() const -> int { return this->addHorizontalSpaceAmountRight; }
 
-void Settings::setAddHorizontalSpaceAmountRight(int pixels) {
-    if (this->addHorizontalSpaceAmountRight == pixels) {
-        return;
-    }
-
-    this->addHorizontalSpaceAmountRight = pixels;
-}
+void Settings::setAddHorizontalSpaceAmountRight(int pixels) { this->addHorizontalSpaceAmountRight = pixels; }
 
 auto Settings::getAddHorizontalSpaceAmountLeft() const -> int { return this->addHorizontalSpaceAmountLeft; }
 
-void Settings::setAddHorizontalSpaceAmountLeft(int pixels) {
-    if (this->addHorizontalSpaceAmountLeft == pixels) {
-        return;
-    }
-
-    this->addHorizontalSpaceAmountLeft = pixels;
-}
+void Settings::setAddHorizontalSpaceAmountLeft(int pixels) { this->addHorizontalSpaceAmountLeft = pixels; }
 
 auto Settings::getUnlimitedScrolling() const -> bool { return this->unlimitedScrolling; }
 
-void Settings::setUnlimitedScrolling(bool enable) {
-    if (enable == this->unlimitedScrolling) {
-        return;
-    }
-
-    this->unlimitedScrolling = enable;
-}
+void Settings::setUnlimitedScrolling(bool enable) { this->unlimitedScrolling = enable; }
 
 auto Settings::getDrawDirModsEnabled() const -> bool { return this->drawDirModsEnabled; }
 
@@ -1402,307 +1310,115 @@ void Settings::setDrawDirModsEnabled(bool enable) { this->drawDirModsEnabled = e
 
 auto Settings::getDrawDirModsRadius() const -> int { return this->drawDirModsRadius; }
 
-void Settings::setDrawDirModsRadius(int pixels) {
-    if (this->drawDirModsRadius == pixels) {
-        return;
-    }
-
-    this->drawDirModsRadius = pixels;
-    save();
-}
+void Settings::setDrawDirModsRadius(int pixels) { this->drawDirModsRadius = pixels; }
 
 auto Settings::getStylusCursorType() const -> StylusCursorType { return this->stylusCursorType; }
 
-void Settings::setStylusCursorType(StylusCursorType type) {
-    if (this->stylusCursorType == type) {
-        return;
-    }
-
-    this->stylusCursorType = type;
-
-    save();
-}
+void Settings::setStylusCursorType(StylusCursorType type) { this->stylusCursorType = type; }
 
 auto Settings::getEraserVisibility() const -> EraserVisibility { return this->eraserVisibility; }
 
-void Settings::setEraserVisibility(EraserVisibility eraserVisibility) {
-    if (this->eraserVisibility == eraserVisibility) {
-        return;
-    }
-
-    this->eraserVisibility = eraserVisibility;
-
-    save();
-}
+void Settings::setEraserVisibility(EraserVisibility eraserVisibility) { this->eraserVisibility = eraserVisibility; }
 
 auto Settings::getIconTheme() const -> IconTheme { return this->iconTheme; }
 
-void Settings::setIconTheme(IconTheme iconTheme) {
-    if (this->iconTheme == iconTheme) {
-        return;
-    }
-
-    this->iconTheme = iconTheme;
-
-    save();
-}
+void Settings::setIconTheme(IconTheme iconTheme) { this->iconTheme = iconTheme; }
 
 auto Settings::getSidebarNumberingStyle() const -> SidebarNumberingStyle { return this->sidebarNumberingStyle; };
 
 void Settings::setSidebarNumberingStyle(SidebarNumberingStyle numberingStyle) {
-    if (this->sidebarNumberingStyle == numberingStyle) {
-        return;
-    }
-
     this->sidebarNumberingStyle = numberingStyle;
-
-    save();
 }
 
 auto Settings::isHighlightPosition() const -> bool { return this->highlightPosition; }
 
-void Settings::setHighlightPosition(bool highlight) {
-    if (this->highlightPosition == highlight) {
-        return;
-    }
-
-    this->highlightPosition = highlight;
-    save();
-}
+void Settings::setHighlightPosition(bool highlight) { this->highlightPosition = highlight; }
 
 auto Settings::getCursorHighlightColor() const -> Color { return this->cursorHighlightColor; }
 
-void Settings::setCursorHighlightColor(Color color) {
-    if (this->cursorHighlightColor != color) {
-        this->cursorHighlightColor = color;
-        save();
-    }
-}
+void Settings::setCursorHighlightColor(Color color) { this->cursorHighlightColor = color; }
 
 auto Settings::getCursorHighlightRadius() const -> double { return this->cursorHighlightRadius; }
 
-void Settings::setCursorHighlightRadius(double radius) {
-    if (this->cursorHighlightRadius != radius) {
-        this->cursorHighlightRadius = radius;
-        save();
-    }
-}
+void Settings::setCursorHighlightRadius(double radius) { this->cursorHighlightRadius = radius; }
 
 auto Settings::getCursorHighlightBorderColor() const -> Color { return this->cursorHighlightBorderColor; }
 
-void Settings::setCursorHighlightBorderColor(Color color) {
-    if (this->cursorHighlightBorderColor != color) {
-        this->cursorHighlightBorderColor = color;
-        save();
-    }
-}
+void Settings::setCursorHighlightBorderColor(Color color) { this->cursorHighlightBorderColor = color; }
 
 auto Settings::getCursorHighlightBorderWidth() const -> double { return this->cursorHighlightBorderWidth; }
 
-void Settings::setCursorHighlightBorderWidth(double radius) {
-    if (this->cursorHighlightBorderWidth != radius) {
-        this->cursorHighlightBorderWidth = radius;
-        save();
-    }
-}
+void Settings::setCursorHighlightBorderWidth(double radius) { this->cursorHighlightBorderWidth = radius; }
 
 auto Settings::isSnapRotation() const -> bool { return this->snapRotation; }
 
-void Settings::setSnapRotation(bool b) {
-    if (this->snapRotation == b) {
-        return;
-    }
-
-    this->snapRotation = b;
-    save();
-}
+void Settings::setSnapRotation(bool b) { this->snapRotation = b; }
 
 auto Settings::getSnapRotationTolerance() const -> double { return this->snapRotationTolerance; }
 
-void Settings::setSnapRotationTolerance(double tolerance) {
-    this->snapRotationTolerance = tolerance;
-    save();
-}
+void Settings::setSnapRotationTolerance(double tolerance) { this->snapRotationTolerance = tolerance; }
 
 auto Settings::isSnapGrid() const -> bool { return this->snapGrid; }
 
-void Settings::setSnapGrid(bool b) {
-    if (this->snapGrid == b) {
-        return;
-    }
+void Settings::setSnapGrid(bool b) { this->snapGrid = b; }
 
-    this->snapGrid = b;
-    save();
-}
-
-void Settings::setSnapGridTolerance(double tolerance) {
-    this->snapGridTolerance = tolerance;
-    save();
-}
+void Settings::setSnapGridTolerance(double tolerance) { this->snapGridTolerance = tolerance; }
 
 auto Settings::getSnapGridTolerance() const -> double { return this->snapGridTolerance; }
 auto Settings::getSnapGridSize() const -> double { return this->snapGridSize; };
-void Settings::setSnapGridSize(double gridSize) {
-    if (this->snapGridSize == gridSize) {
-        return;
-    }
-    this->snapGridSize = gridSize;
-    save();
-}
+void Settings::setSnapGridSize(double gridSize) { this->snapGridSize = gridSize; }
 
 auto Settings::getStrokeRecognizerMinSize() const -> double { return this->strokeRecognizerMinSize; };
-void Settings::setStrokeRecognizerMinSize(double value) {
-    if (this->strokeRecognizerMinSize == value) {
-        return;
-    }
-
-    this->strokeRecognizerMinSize = value;
-    save();
-};
+void Settings::setStrokeRecognizerMinSize(double value) { this->strokeRecognizerMinSize = value; };
 
 auto Settings::getTouchDrawingEnabled() const -> bool { return this->touchDrawing; }
 
-void Settings::setTouchDrawingEnabled(bool b) {
-    if (this->touchDrawing == b) {
-        return;
-    }
-
-    this->touchDrawing = b;
-    save();
-}
+void Settings::setTouchDrawingEnabled(bool b) { this->touchDrawing = b; }
 
 auto Settings::getGtkTouchInertialScrollingEnabled() const -> bool { return this->gtkTouchInertialScrolling; };
 
-void Settings::setGtkTouchInertialScrollingEnabled(bool b) {
-    if (this->gtkTouchInertialScrolling == b) {
-        return;
-    }
-
-    this->gtkTouchInertialScrolling = b;
-    save();
-}
+void Settings::setGtkTouchInertialScrollingEnabled(bool b) { this->gtkTouchInertialScrolling = b; }
 
 auto Settings::isPressureGuessingEnabled() const -> bool { return this->pressureGuessing; }
-void Settings::setPressureGuessingEnabled(bool b) {
-    if (this->pressureGuessing == b) {
-        return;
-    }
-
-    this->pressureGuessing = b;
-    save();
-}
+void Settings::setPressureGuessingEnabled(bool b) { this->pressureGuessing = b; }
 
 double Settings::getMinimumPressure() const { return this->minimumPressure; }
-void Settings::setMinimumPressure(double minimumPressure) {
-    if (this->minimumPressure == minimumPressure) {
-        return;
-    }
-
-    this->minimumPressure = minimumPressure;
-    save();
-}
+void Settings::setMinimumPressure(double minimumPressure) { this->minimumPressure = minimumPressure; }
 
 double Settings::getPressureMultiplier() const { return this->pressureMultiplier; }
-void Settings::setPressureMultiplier(double multiplier) {
-    if (this->pressureMultiplier == multiplier) {
-        return;
-    }
-
-    this->pressureMultiplier = multiplier;
-    save();
-}
+void Settings::setPressureMultiplier(double multiplier) { this->pressureMultiplier = multiplier; }
 
 auto Settings::getScrollbarHideType() const -> ScrollbarHideType { return this->scrollbarHideType; }
 
-void Settings::setScrollbarHideType(ScrollbarHideType type) {
-    if (this->scrollbarHideType == type) {
-        return;
-    }
-
-    this->scrollbarHideType = type;
-
-    save();
-}
+void Settings::setScrollbarHideType(ScrollbarHideType type) { this->scrollbarHideType = type; }
 
 auto Settings::isAutoloadMostRecent() const -> bool { return this->autoloadMostRecent; }
 
-void Settings::setAutoloadMostRecent(bool load) {
-    if (this->autoloadMostRecent == load) {
-        return;
-    }
-    this->autoloadMostRecent = load;
-    save();
-}
+void Settings::setAutoloadMostRecent(bool load) { this->autoloadMostRecent = load; }
 
 auto Settings::isAutoloadPdfXoj() const -> bool { return this->autoloadPdfXoj; }
 
-void Settings::setAutoloadPdfXoj(bool load) {
-    if (this->autoloadPdfXoj == load) {
-        return;
-    }
-    this->autoloadPdfXoj = load;
-    save();
-}
+void Settings::setAutoloadPdfXoj(bool load) { this->autoloadPdfXoj = load; }
 
 auto Settings::getDefaultSaveName() const -> string const& { return this->defaultSaveName; }
 
-void Settings::setDefaultSaveName(const string& name) {
-    if (this->defaultSaveName == name) {
-        return;
-    }
-
-    this->defaultSaveName = name;
-
-    save();
-}
+void Settings::setDefaultSaveName(const string& name) { this->defaultSaveName = name; }
 
 auto Settings::getDefaultPdfExportName() const -> string const& { return this->defaultPdfExportName; }
 
-void Settings::setDefaultPdfExportName(const string& name) {
-    if (this->defaultPdfExportName == name) {
-        return;
-    }
-
-    this->defaultPdfExportName = name;
-
-    save();
-}
+void Settings::setDefaultPdfExportName(const string& name) { this->defaultPdfExportName = name; }
 
 auto Settings::getPageTemplate() const -> string const& { return this->pageTemplate; }
 
-void Settings::setPageTemplate(const string& pageTemplate) {
-    if (this->pageTemplate == pageTemplate) {
-        return;
-    }
-
-    this->pageTemplate = pageTemplate;
-
-    save();
-}
+void Settings::setPageTemplate(const string& pageTemplate) { this->pageTemplate = pageTemplate; }
 
 auto Settings::getAudioFolder() const -> fs::path const& { return this->audioFolder; }
 
-void Settings::setAudioFolder(fs::path audioFolder) {
-    if (this->audioFolder == audioFolder) {
-        return;
-    }
-
-    this->audioFolder = std::move(audioFolder);
-
-    save();
-}
+void Settings::setAudioFolder(fs::path audioFolder) { this->audioFolder = std::move(audioFolder); }
 
 auto Settings::getSizeUnit() const -> string const& { return sizeUnit; }
 
-void Settings::setSizeUnit(const string& sizeUnit) {
-    if (this->sizeUnit == sizeUnit) {
-        return;
-    }
-
-    this->sizeUnit = sizeUnit;
-
-    save();
-}
+void Settings::setSizeUnit(const string& sizeUnit) { this->sizeUnit = sizeUnit; }
 
 /**
  * Get size index in XOJ_UNITS
@@ -1730,221 +1446,95 @@ void Settings::setSizeUnitIndex(int sizeUnitId) {
     setSizeUnit(XOJ_UNITS[sizeUnitId].name);
 }
 
-void Settings::setShowPairedPages(bool showPairedPages) {
-    if (this->showPairedPages == showPairedPages) {
-        return;
-    }
-
-    this->showPairedPages = showPairedPages;
-    save();
-}
+void Settings::setShowPairedPages(bool showPairedPages) { this->showPairedPages = showPairedPages; }
 
 auto Settings::isShowPairedPages() const -> bool { return this->showPairedPages; }
 
 void Settings::setPresentationMode(bool presentationMode) {
-    if (this->presentationMode == presentationMode) {
-        return;
-    }
     if (presentationMode) {
         this->activeViewMode = PresetViewModeIds::VIEW_MODE_PRESENTATION;
     }
     this->presentationMode = presentationMode;
-    save();
 }
 
 auto Settings::isPresentationMode() const -> bool {
     return this->activeViewMode == PresetViewModeIds::VIEW_MODE_PRESENTATION;
 }
 
-void Settings::setPressureSensitivity(gboolean presureSensitivity) {
-    if (this->pressureSensitivity == presureSensitivity) {
-        return;
-    }
-    this->pressureSensitivity = presureSensitivity;
+void Settings::setPressureSensitivity(gboolean presureSensitivity) { this->pressureSensitivity = presureSensitivity; }
 
-    save();
-}
-
-void Settings::setPairsOffset(int numOffset) {
-    if (this->numPairsOffset == numOffset) {
-        return;
-    }
-
-    this->numPairsOffset = numOffset;
-    save();
-}
+void Settings::setPairsOffset(int numOffset) { this->numPairsOffset = numOffset; }
 
 auto Settings::getPairsOffset() const -> int { return this->numPairsOffset; }
 
 void Settings::setEmptyLastPageAppend(EmptyLastPageAppendType emptyLastPageAppend) {
-    if (this->emptyLastPageAppend == emptyLastPageAppend) {
-        return;
-    }
-
     this->emptyLastPageAppend = emptyLastPageAppend;
-    save();
 }
 
 auto Settings::getEmptyLastPageAppend() const -> EmptyLastPageAppendType { return this->emptyLastPageAppend; }
 
-void Settings::setViewColumns(int numColumns) {
-    if (this->numColumns == numColumns) {
-        return;
-    }
-
-    this->numColumns = numColumns;
-    save();
-}
+void Settings::setViewColumns(int numColumns) { this->numColumns = numColumns; }
 
 auto Settings::getViewColumns() const -> int { return this->numColumns; }
 
 
-void Settings::setViewRows(int numRows) {
-    if (this->numRows == numRows) {
-        return;
-    }
-
-    this->numRows = numRows;
-    save();
-}
+void Settings::setViewRows(int numRows) { this->numRows = numRows; }
 
 auto Settings::getViewRows() const -> int { return this->numRows; }
 
-void Settings::setViewFixedRows(bool viewFixedRows) {
-    if (this->viewFixedRows == viewFixedRows) {
-        return;
-    }
-
-    this->viewFixedRows = viewFixedRows;
-    save();
-}
+void Settings::setViewFixedRows(bool viewFixedRows) { this->viewFixedRows = viewFixedRows; }
 
 auto Settings::isViewFixedRows() const -> bool { return this->viewFixedRows; }
 
-void Settings::setViewLayoutVert(bool vert) {
-    if (this->layoutVertical == vert) {
-        return;
-    }
-
-    this->layoutVertical = vert;
-    save();
-}
+void Settings::setViewLayoutVert(bool vert) { this->layoutVertical = vert; }
 
 auto Settings::getViewLayoutVert() const -> bool { return this->layoutVertical; }
 
-void Settings::setViewLayoutR2L(bool r2l) {
-    if (this->layoutRightToLeft == r2l) {
-        return;
-    }
-
-    this->layoutRightToLeft = r2l;
-    save();
-}
+void Settings::setViewLayoutR2L(bool r2l) { this->layoutRightToLeft = r2l; }
 
 auto Settings::getViewLayoutR2L() const -> bool { return this->layoutRightToLeft; }
 
-void Settings::setViewLayoutB2T(bool b2t) {
-    if (this->layoutBottomToTop == b2t) {
-        return;
-    }
-
-    this->layoutBottomToTop = b2t;
-    save();
-}
+void Settings::setViewLayoutB2T(bool b2t) { this->layoutBottomToTop = b2t; }
 
 auto Settings::getViewLayoutB2T() const -> bool { return this->layoutBottomToTop; }
 
-void Settings::setLastSavePath(fs::path p) {
-    this->lastSavePath = std::move(p);
-    save();
-}
+void Settings::setLastSavePath(fs::path p) { this->lastSavePath = std::move(p); }
 
 auto Settings::getLastSavePath() const -> fs::path const& { return this->lastSavePath; }
 
-void Settings::setLastOpenPath(fs::path p) {
-    this->lastOpenPath = std::move(p);
-    save();
-}
+void Settings::setLastOpenPath(fs::path p) { this->lastOpenPath = std::move(p); }
 
 auto Settings::getLastOpenPath() const -> fs::path const& { return this->lastOpenPath; }
 
-void Settings::setLastImagePath(const fs::path& path) {
-    if (this->lastImagePath == path) {
-        return;
-    }
-    this->lastImagePath = path;
-    save();
-}
+void Settings::setLastImagePath(const fs::path& path) { this->lastImagePath = path; }
 
 auto Settings::getLastImagePath() const -> fs::path const& { return this->lastImagePath; }
 
-void Settings::setZoomStep(double zoomStep) {
-    if (this->zoomStep == zoomStep) {
-        return;
-    }
-    this->zoomStep = zoomStep;
-    save();
-}
+void Settings::setZoomStep(double zoomStep) { this->zoomStep = zoomStep; }
 
 auto Settings::getZoomStep() const -> double { return this->zoomStep; }
 
-void Settings::setZoomStepScroll(double zoomStepScroll) {
-    if (this->zoomStepScroll == zoomStepScroll) {
-        return;
-    }
-    this->zoomStepScroll = zoomStepScroll;
-    save();
-}
+void Settings::setZoomStepScroll(double zoomStepScroll) { this->zoomStepScroll = zoomStepScroll; }
 
 auto Settings::getZoomStepScroll() const -> double { return this->zoomStepScroll; }
 
-void Settings::setEdgePanSpeed(double speed) {
-    if (this->edgePanSpeed == speed) {
-        return;
-    }
-    this->edgePanSpeed = speed;
-    save();
-}
+void Settings::setEdgePanSpeed(double speed) { this->edgePanSpeed = speed; }
 
 auto Settings::getEdgePanSpeed() const -> double { return this->edgePanSpeed; }
 
-void Settings::setEdgePanMaxMult(double maxMult) {
-    if (this->edgePanMaxMult == maxMult) {
-        return;
-    }
-    this->edgePanMaxMult = maxMult;
-    save();
-}
+void Settings::setEdgePanMaxMult(double maxMult) { this->edgePanMaxMult = maxMult; }
 
 auto Settings::getEdgePanMaxMult() const -> double { return this->edgePanMaxMult; }
 
-void Settings::setDisplayDpi(int dpi) {
-    if (this->displayDpi == dpi) {
-        return;
-    }
-    this->displayDpi = dpi;
-    save();
-}
+void Settings::setDisplayDpi(int dpi) { this->displayDpi = dpi; }
 
 auto Settings::getDisplayDpi() const -> int { return this->displayDpi; }
 
-void Settings::setDarkTheme(bool dark) {
-    if (this->darkTheme == dark) {
-        return;
-    }
-    this->darkTheme = dark;
-    save();
-}
+void Settings::setDarkTheme(bool dark) { this->darkTheme = dark; }
 
 auto Settings::isDarkTheme() const -> bool { return this->darkTheme; }
 
-void Settings::setAreStockIconsUsed(bool use) {
-    if (this->useStockIcons == use) {
-        return;
-    }
-    this->useStockIcons = use;
-    save();
-}
+void Settings::setAreStockIconsUsed(bool use) { this->useStockIcons = use; }
 
 auto Settings::areStockIconsUsed() const -> bool { return this->useStockIcons; }
 
@@ -1952,41 +1542,22 @@ auto Settings::isFullscreen() const -> bool { return this->fullscreenActive; }
 
 auto Settings::isSidebarVisible() const -> bool { return this->showSidebar; }
 
-void Settings::setSidebarVisible(bool visible) {
-    if (this->showSidebar == visible) {
-        return;
-    }
-    this->showSidebar = visible;
-    save();
-}
+void Settings::setSidebarVisible(bool visible) { this->showSidebar = visible; }
 
 auto Settings::isToolbarVisible() const -> bool { return this->showToolbar; }
 
-void Settings::setToolbarVisible(bool visible) {
-    if (this->showToolbar == visible) {
-        return;
-    }
-    this->showToolbar = visible;
-    save();
-}
+void Settings::setToolbarVisible(bool visible) { this->showToolbar = visible; }
 
 auto Settings::getSidebarWidth() const -> int { return this->sidebarWidth; }
 
 void Settings::setSidebarWidth(int width) {
     width = std::max(width, 50);
-
-    if (this->sidebarWidth == width) {
-        return;
-    }
     this->sidebarWidth = width;
-    save();
 }
 
 void Settings::setMainWndSize(int width, int height) {
     this->mainWndWidth = width;
     this->mainWndHeight = height;
-
-    save();
 }
 
 auto Settings::getMainWndWidth() const -> int { return this->mainWndWidth; }
@@ -1995,27 +1566,15 @@ auto Settings::getMainWndHeight() const -> int { return this->mainWndHeight; }
 
 auto Settings::isMainWndMaximized() const -> bool { return this->maximized; }
 
-void Settings::setMainWndMaximized(bool max) {
-    if (this->maximized == max) {
-        return;
-    }
-    this->maximized = max;
-    save();
-}
+void Settings::setMainWndMaximized(bool max) { this->maximized = max; }
 
-void Settings::setSelectedToolbar(const string& name) {
-    if (this->selectedToolbar == name) {
-        return;
-    }
-    this->selectedToolbar = name;
-    save();
-}
+void Settings::setSelectedToolbar(const string& name) { this->selectedToolbar = name; }
 
 auto Settings::getSelectedToolbar() const -> string const& { return this->selectedToolbar; }
 
 auto Settings::getCustomElement(const string& name) -> SElement& { return this->data[name]; }
 
-void Settings::customSettingsChanged() { save(); }
+void Settings::customSettingsChanged() {}
 
 auto Settings::getButtonConfig(unsigned int id) -> ButtonConfig* {
     if (id >= this->buttonConfig.size()) {
@@ -2025,192 +1584,79 @@ auto Settings::getButtonConfig(unsigned int id) -> ButtonConfig* {
     return this->buttonConfig[id].get();
 }
 
-void Settings::setViewMode(ViewModeId mode, ViewMode viewMode) {
-    if (this->viewModes[mode] == viewMode) {
-        return;
-    }
-    this->viewModes.at(mode) = viewMode;
-    save();
-}
+void Settings::setViewMode(ViewModeId mode, ViewMode viewMode) { this->viewModes.at(mode) = viewMode; }
 
 auto Settings::getTouchZoomStartThreshold() const -> double { return this->touchZoomStartThreshold; }
-void Settings::setTouchZoomStartThreshold(double threshold) {
-    if (this->touchZoomStartThreshold == threshold) {
-        return;
-    }
-
-    this->touchZoomStartThreshold = threshold;
-    save();
-}
+void Settings::setTouchZoomStartThreshold(double threshold) { this->touchZoomStartThreshold = threshold; }
 
 
 auto Settings::getPDFPageRerenderThreshold() const -> double { return this->pageRerenderThreshold; }
-void Settings::setPDFPageRerenderThreshold(double threshold) {
-    if (this->pageRerenderThreshold == threshold) {
-        return;
-    }
-
-    this->pageRerenderThreshold = threshold;
-    save();
-}
+void Settings::setPDFPageRerenderThreshold(double threshold) { this->pageRerenderThreshold = threshold; }
 
 auto Settings::getPdfPageCacheSize() const -> int { return this->pdfPageCacheSize; }
 
-void Settings::setPdfPageCacheSize(int size) {
-    if (this->pdfPageCacheSize == size) {
-        return;
-    }
-    this->pdfPageCacheSize = size;
-    save();
-}
+void Settings::setPdfPageCacheSize(int size) { this->pdfPageCacheSize = size; }
 
 auto Settings::getPreloadPagesBefore() const -> unsigned int { return this->preloadPagesBefore; }
 
-void Settings::setPreloadPagesBefore(unsigned int n) {
-    if (this->preloadPagesBefore == n) {
-        return;
-    }
-    this->preloadPagesBefore = n;
-    save();
-}
+void Settings::setPreloadPagesBefore(unsigned int n) { this->preloadPagesBefore = n; }
 
 auto Settings::getPreloadPagesAfter() const -> unsigned int { return this->preloadPagesAfter; }
 
-void Settings::setPreloadPagesAfter(unsigned int n) {
-    if (this->preloadPagesAfter == n) {
-        return;
-    }
-    this->preloadPagesAfter = n;
-    save();
-}
+void Settings::setPreloadPagesAfter(unsigned int n) { this->preloadPagesAfter = n; }
 
 auto Settings::isEagerPageCleanup() const -> bool { return this->eagerPageCleanup; }
 
-void Settings::setEagerPageCleanup(bool b) {
-    if (this->eagerPageCleanup == b) {
-        return;
-    }
-    this->eagerPageCleanup = b;
-    save();
-}
+void Settings::setEagerPageCleanup(bool b) { this->eagerPageCleanup = b; }
 
 auto Settings::getBorderColor() const -> Color { return this->selectionBorderColor; }
 
-void Settings::setBorderColor(Color color) {
-    if (this->selectionBorderColor == color) {
-        return;
-    }
-    this->selectionBorderColor = color;
-    save();
-}
+void Settings::setBorderColor(Color color) { this->selectionBorderColor = color; }
 
 auto Settings::getSelectionColor() const -> Color { return this->selectionMarkerColor; }
 
-void Settings::setSelectionColor(Color color) {
-    if (this->selectionMarkerColor == color) {
-        return;
-    }
-    this->selectionMarkerColor = color;
-    save();
-}
+void Settings::setSelectionColor(Color color) { this->selectionMarkerColor = color; }
 
 auto Settings::getActiveSelectionColor() const -> Color { return this->activeSelectionColor; }
 
-void Settings::setActiveSelectionColor(Color color) {
-    if (this->activeSelectionColor == color) {
-        return;
-    }
-    this->activeSelectionColor = color;
-    save();
-}
+void Settings::setActiveSelectionColor(Color color) { this->activeSelectionColor = color; }
 
 auto Settings::getBackgroundColor() const -> Color { return this->backgroundColor; }
 
-void Settings::setBackgroundColor(Color color) {
-    if (this->backgroundColor == color) {
-        return;
-    }
-    this->backgroundColor = color;
-    save();
-}
+void Settings::setBackgroundColor(Color color) { this->backgroundColor = color; }
 
 auto Settings::getFont() -> XojFont& { return this->font; }
 
-void Settings::setFont(const XojFont& font) {
-    this->font = font;
-    save();
-}
+void Settings::setFont(const XojFont& font) { this->font = font; }
 
 
 auto Settings::getAudioInputDevice() const -> PaDeviceIndex { return this->audioInputDevice; }
 
-void Settings::setAudioInputDevice(PaDeviceIndex deviceIndex) {
-    if (this->audioInputDevice == deviceIndex) {
-        return;
-    }
-    this->audioInputDevice = deviceIndex;
-    save();
-}
+void Settings::setAudioInputDevice(PaDeviceIndex deviceIndex) { this->audioInputDevice = deviceIndex; }
 
 auto Settings::getAudioOutputDevice() const -> PaDeviceIndex { return this->audioOutputDevice; }
 
-void Settings::setAudioOutputDevice(PaDeviceIndex deviceIndex) {
-    if (this->audioOutputDevice == deviceIndex) {
-        return;
-    }
-    this->audioOutputDevice = deviceIndex;
-    save();
-}
+void Settings::setAudioOutputDevice(PaDeviceIndex deviceIndex) { this->audioOutputDevice = deviceIndex; }
 
 auto Settings::getAudioSampleRate() const -> double { return this->audioSampleRate; }
 
-void Settings::setAudioSampleRate(double sampleRate) {
-    if (this->audioSampleRate == sampleRate) {
-        return;
-    }
-    this->audioSampleRate = sampleRate;
-    save();
-}
+void Settings::setAudioSampleRate(double sampleRate) { this->audioSampleRate = sampleRate; }
 
 auto Settings::getAudioGain() const -> double { return this->audioGain; }
 
-void Settings::setAudioGain(double gain) {
-    if (this->audioGain == gain) {
-        return;
-    }
-    this->audioGain = gain;
-    save();
-}
+void Settings::setAudioGain(double gain) { this->audioGain = gain; }
 
 auto Settings::getDefaultSeekTime() const -> unsigned int { return this->defaultSeekTime; }
 
-void Settings::setDefaultSeekTime(unsigned int t) {
-    if (this->defaultSeekTime == t) {
-        return;
-    }
-    this->defaultSeekTime = t;
-    save();
-}
+void Settings::setDefaultSeekTime(unsigned int t) { this->defaultSeekTime = t; }
 
 auto Settings::getPluginEnabled() const -> string const& { return this->pluginEnabled; }
 
-void Settings::setPluginEnabled(const string& pluginEnabled) {
-    if (this->pluginEnabled == pluginEnabled) {
-        return;
-    }
-    this->pluginEnabled = pluginEnabled;
-    save();
-}
+void Settings::setPluginEnabled(const string& pluginEnabled) { this->pluginEnabled = pluginEnabled; }
 
 auto Settings::getPluginDisabled() const -> string const& { return this->pluginDisabled; }
 
-void Settings::setPluginDisabled(const string& pluginDisabled) {
-    if (this->pluginDisabled == pluginDisabled) {
-        return;
-    }
-    this->pluginDisabled = pluginDisabled;
-    save();
-}
+void Settings::setPluginDisabled(const string& pluginDisabled) { this->pluginDisabled = pluginDisabled; }
 
 
 void Settings::getStrokeFilter(int* ignoreTime, double* ignoreLength, int* successiveTime) const {
@@ -2250,32 +1696,16 @@ auto Settings::setPreferredLocale(std::string const& locale) -> void { this->pre
 
 auto Settings::getPreferredLocale() const -> std::string { return this->preferredLocale; }
 
-void Settings::setIgnoredStylusEvents(int numEvents) {
-    if (this->numIgnoredStylusEvents == numEvents) {
-        return;
-    }
-    this->numIgnoredStylusEvents = std::max<int>(numEvents, 0);
-    save();
-}
+void Settings::setIgnoredStylusEvents(int numEvents) { this->numIgnoredStylusEvents = std::max<int>(numEvents, 0); }
 
 auto Settings::getIgnoredStylusEvents() const -> int { return this->numIgnoredStylusEvents; }
 
-void Settings::setInputSystemTPCButtonEnabled(bool tpcButtonEnabled) {
-    if (this->inputSystemTPCButton == tpcButtonEnabled) {
-        return;
-    }
-    this->inputSystemTPCButton = tpcButtonEnabled;
-    save();
-}
+void Settings::setInputSystemTPCButtonEnabled(bool tpcButtonEnabled) { this->inputSystemTPCButton = tpcButtonEnabled; }
 
 auto Settings::getInputSystemTPCButtonEnabled() const -> bool { return this->inputSystemTPCButton; }
 
 void Settings::setInputSystemDrawOutsideWindowEnabled(bool drawOutsideWindowEnabled) {
-    if (this->inputSystemDrawOutsideWindow == drawOutsideWindowEnabled) {
-        return;
-    }
     this->inputSystemDrawOutsideWindow = drawOutsideWindowEnabled;
-    save();
 }
 
 auto Settings::getInputSystemDrawOutsideWindowEnabled() const -> bool { return this->inputSystemDrawOutsideWindow; }
@@ -2350,23 +1780,11 @@ auto Settings::getDeviceClassForDevice(const string& deviceName, GdkInputSource 
 
 auto Settings::isScrollbarFadeoutDisabled() const -> bool { return disableScrollbarFadeout; }
 
-void Settings::setScrollbarFadeoutDisabled(bool disable) {
-    if (disableScrollbarFadeout == disable) {
-        return;
-    }
-    disableScrollbarFadeout = disable;
-    save();
-}
+void Settings::setScrollbarFadeoutDisabled(bool disable) { this->disableScrollbarFadeout = disable; }
 
 auto Settings::isAudioDisabled() const -> bool { return disableAudio; }
 
-void Settings::setAudioDisabled(bool disable) {
-    if (disableAudio == disable) {
-        return;
-    }
-    disableAudio = disable;
-    save();
-}
+void Settings::setAudioDisabled(bool disable) { this->disableAudio = disable; }
 
 //////////////////////////////////////////////////
 
@@ -2510,74 +1928,22 @@ auto Settings::getStabilizerAveragingMethod() const -> StrokeStabilizer::Averagi
 }
 auto Settings::getStabilizerPreprocessor() const -> StrokeStabilizer::Preprocessor { return stabilizerPreprocessor; }
 
-void Settings::setStabilizerCuspDetection(bool cuspDetection) {
-    if (stabilizerCuspDetection == cuspDetection) {
-        return;
-    }
-    stabilizerCuspDetection = cuspDetection;
-    save();
-}
-void Settings::setStabilizerFinalizeStroke(bool finalizeStroke) {
-    if (stabilizerFinalizeStroke == finalizeStroke) {
-        return;
-    }
-    stabilizerFinalizeStroke = finalizeStroke;
-    save();
-}
-void Settings::setStabilizerBuffersize(size_t buffersize) {
-    if (stabilizerBuffersize == buffersize) {
-        return;
-    }
-    stabilizerBuffersize = buffersize;
-    save();
-}
-void Settings::setStabilizerDeadzoneRadius(double deadzoneRadius) {
-    if (stabilizerDeadzoneRadius == deadzoneRadius) {
-        return;
-    }
-    stabilizerDeadzoneRadius = deadzoneRadius;
-    save();
-}
-void Settings::setStabilizerDrag(double drag) {
-    if (stabilizerDrag == drag) {
-        return;
-    }
-    stabilizerDrag = drag;
-    save();
-}
-void Settings::setStabilizerMass(double mass) {
-    if (stabilizerMass == mass) {
-        return;
-    }
-    stabilizerMass = mass;
-    save();
-}
-void Settings::setStabilizerSigma(double sigma) {
-    if (stabilizerSigma == sigma) {
-        return;
-    }
-    stabilizerSigma = sigma;
-    save();
-}
+void Settings::setStabilizerCuspDetection(bool cuspDetection) { this->stabilizerCuspDetection = cuspDetection; }
+void Settings::setStabilizerFinalizeStroke(bool finalizeStroke) { this->stabilizerFinalizeStroke = finalizeStroke; }
+void Settings::setStabilizerBuffersize(size_t buffersize) { this->stabilizerBuffersize = buffersize; }
+void Settings::setStabilizerDeadzoneRadius(double deadzoneRadius) { this->stabilizerDeadzoneRadius = deadzoneRadius; }
+void Settings::setStabilizerDrag(double drag) { this->stabilizerDrag = drag; }
+void Settings::setStabilizerMass(double mass) { this->stabilizerMass = mass; }
+void Settings::setStabilizerSigma(double sigma) { this->stabilizerSigma = sigma; }
 void Settings::setStabilizerAveragingMethod(StrokeStabilizer::AveragingMethod averagingMethod) {
     const StrokeStabilizer::AveragingMethod method =
             StrokeStabilizer::isValid(averagingMethod) ? averagingMethod : StrokeStabilizer::AveragingMethod::NONE;
-
-    if (stabilizerAveragingMethod == method) {
-        return;
-    }
-    stabilizerAveragingMethod = method;
-    save();
+    this->stabilizerAveragingMethod = method;
 }
 void Settings::setStabilizerPreprocessor(StrokeStabilizer::Preprocessor preprocessor) {
     const StrokeStabilizer::Preprocessor p =
             StrokeStabilizer::isValid(preprocessor) ? preprocessor : StrokeStabilizer::Preprocessor::NONE;
-
-    if (stabilizerPreprocessor == p) {
-        return;
-    }
-    stabilizerPreprocessor = p;
-    save();
+    this->stabilizerPreprocessor = p;
 }
 
 /**
@@ -2603,7 +1969,6 @@ void Settings::setNumberOfSpacesForTab(unsigned int numberOfSpaces) {
         numberOfSpaces = 4;
     }
     this->numberOfSpacesForTab = numberOfSpaces;
-    save();
 }
 
 unsigned int Settings::getNumberOfSpacesForTab() const { return this->numberOfSpacesForTab; }

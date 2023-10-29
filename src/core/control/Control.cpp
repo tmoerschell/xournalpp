@@ -293,6 +293,8 @@ void Control::saveSettings() {
     this->settings->setMainWndMaximized(this->win->isMaximized());
 
     this->sidebar->saveSize();
+
+    this->settings->save();
 }
 
 void Control::initWindow(MainWindow* win) {
