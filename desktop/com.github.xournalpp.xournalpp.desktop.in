@@ -6,7 +6,7 @@ GenericName=Note-taking application
 Comment=Take handwritten notes
 Keywords=tablet;Wacom;pen input;PDF Annotation;markup;journal;handwriting;diary;notes;
 
-Exec=xournalpp-wrapper %f
+Exec=xournalpp-light-theme %f
 SingleMainWindow=false
 StartupWMClass=com.github.xournalpp.xournalpp
 Terminal=false
