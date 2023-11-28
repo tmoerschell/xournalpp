@@ -5,7 +5,7 @@ Name=Xournal++
 Comment=Take handwritten notes
 Keywords=tablet;Wacom;pen input;PDF Annotation;markup
 
-Exec=xournalpp %f
+Exec=xournalpp-light-theme %f
 SingleMainWindow=false
 StartupWMClass=com.github.xournalpp.xournalpp
 Terminal=false
