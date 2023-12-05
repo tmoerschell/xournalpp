@@ -121,27 +121,32 @@ public:
     std::optional<size_t> getPageIndexAtGridMap(size_t row, size_t col);
 
     /**
-     * @brief Get the total padding above the page at the given index.
+     * @brief Get the total padding above the given position.
      *
      *  The size of this padding does not scale with pages as the user zooms in and out.
      * As such, it is often necessary to get _just_ this padding.
+     * This does not include padding added to center the page on the screen.
      *
-     * @param pageIndex is the index of the XojPageView as returned by [getIndexAtGridMap]
-     * @return the sum of the padding between pages above the page with the given index
-     *         and any padding the user added vertically above all pages (i.e. in settings).
+     * @param y the vertical position in relative coordinates, up to where the padding
+     *          should be calculated
+     * @return the sum of the padding between pages above the given position, plus any
+     *         padding the user added vertically above all pages (from settings)
      */
-    int getPaddingAbovePage(size_t pageIndex) const;
+    double getPaddingAbove(double y) const;
 
     /**
      * @brief Get the static padding added to the left of the current page.
      *
-     *  This does not include padding added to center the page on the screen.
+     *  The size of this padding does not scale with pages as the user zooms in and out.
+     * As such, it is often necessary to get _just_ this padding.
+     * This does not include padding added to center the page on the screen.
      *
-     * @param pageIndex is the index of the XojPageView, as given by [getIndexAtGridMap]
-     * @return the sum of the padding between pages left of the page at [pageIndex] and
-     *         any horizontal padding the user decided to add (from settings)
+     * @param x the horizontal position in relative coordinates, up to where the padding
+     *          should be calculated
+     * @return the sum of the padding between pages left of the given position, plus any
+     *         padding the user added horizontally before all pages (from settings)
      */
-    int getPaddingLeftOfPage(size_t pageIndex) const;
+    double getPaddingLeftOf(double x) const;
 
 protected:
     // Todo(Fabian): move to ScrollHandling also it must not depend on Layout
@@ -156,13 +161,13 @@ private:
      * This includes the default padding, plus the user-defined additional space
      * above the page area or the widget's size for "infinite scrolling"
      */
-    int getPaddingAboveAll() const;
+    double getPaddingAboveAll() const;
     /**
      * Get the static padding left of all pages.
      * This includes the default padding, plus the user-defined additional space
      * left of the page area or the widget's size for "infinite scrolling"
      */
-    int getPaddingLeftOfAll() const;
+    double getPaddingLeftOfAll() const;
 
     void maybeAddLastPage(Layout* layout);
 
@@ -193,4 +198,6 @@ private:
     LayoutType layoutType;
     mutable std::vector<unsigned> colXStart;
     mutable std::vector<unsigned> rowYStart;
+    double borderX;
+    double borderY;
 };
