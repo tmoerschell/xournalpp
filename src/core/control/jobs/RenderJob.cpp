@@ -23,6 +23,8 @@
 #include "view/DocumentView.h"          // for DocumentView
 #include "view/Mask.h"                  // for Mask
 
+#include <chrono>
+
 #if defined(__has_cpp_attribute) && __has_cpp_attribute(likely)
 #define XOJ_CPP20_UNLIKELY [[unlikely]]
 #else
@@ -113,8 +115,10 @@ void RenderJob::renderToBuffer(cairo_t* cr) const {
                                  TOOL_PLAY_OBJECT);
     localView.setPdfCache(this->view->xournal->getCache());
 
-    std::lock_guard<Document> lock(*this->view->xournal->getDocument());
+    //std::lock_guard<Document> lock(*this->view->xournal->getDocument());
+    const auto start = std::chrono::high_resolution_clock::now();
     localView.drawPage(this->view->page, cr, false);
+    const auto stop = std::chrono::high_resolution_clock::now();
 }
 
 auto RenderJob::getType() -> JobType { return JOB_TYPE_RENDER; }
