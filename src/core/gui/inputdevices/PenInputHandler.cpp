@@ -147,7 +147,7 @@ auto PenInputHandler::actionStart(InputEvent const& event) -> bool {
                 selection->getSelectionTypeForPos(selectionPos.x, selectionPos.y, xournal->view->getZoom());
         if (selType) {
 
-            if (selType == CURSOR_SELECTION_MOVE && modifier3) {
+            if (selType == CURSOR_SELECTION_MOVE && modifier2) {
                 selection->copySelection();
             }
 
