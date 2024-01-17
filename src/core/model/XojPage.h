@@ -12,6 +12,7 @@
 #pragma once
 
 #include <cstddef>   // for size_t
+#include <mutex>     // for mutex
 #include <optional>  // for optional
 #include <string>    // for string
 #include <vector>    // for vector
@@ -81,6 +82,10 @@ public:
      */
     XojPage* clone();
 
+    void setDocumentLock(std::mutex* lock);
+    void lock();
+    void unlock();
+
 private:
     /**
      * The Background image if any
@@ -127,6 +132,11 @@ private:
      * Background name
      */
     std::optional<std::string> backgroundName;
+
+    /**
+     * The lock of the parent document
+     */
+    std::mutex* documentLock;
 
     // Allow LoadHandler to add layers directly
     friend class LoadHandler;
