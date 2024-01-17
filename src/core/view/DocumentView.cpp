@@ -61,7 +61,9 @@ void DocumentView::finializeDrawing() {
  * Draw the background
  */
 void DocumentView::drawBackground(xoj::view::BackgroundFlags bgFlags) const {
+    page->lock();
     auto bgView = xoj::view::BackgroundView::createForPage(page, bgFlags, pdfCache);
+    page->unlock();
     bgView->draw(cr);
 }
 

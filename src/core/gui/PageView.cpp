@@ -807,8 +807,8 @@ void XojPageView::repaintArea(double x1, double y1, double x2, double y2) const 
 void XojPageView::flagDirtyRegion(const Range& rg) const { repaintArea(rg.minX, rg.minY, rg.maxX, rg.maxY); }
 
 void XojPageView::drawAndDeleteToolView(xoj::view::ToolView* v, const Range& rg) {
-    if (v->isViewOf(this->inputHandler.get()) || v->isViewOf(this->verticalSpace.get()) ||
-        v->isViewOf(this->textEditor.get())) {
+    if (this->hasBuffer() && (v->isViewOf(this->inputHandler.get()) || v->isViewOf(this->verticalSpace.get()) ||
+        v->isViewOf(this->textEditor.get()))) {
         // Draw the inputHandler's view onto the page buffer.
         std::lock_guard lock(this->drawingMutex);
         if (auto cr = buffer.get(); cr) {
