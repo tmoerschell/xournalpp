@@ -2,6 +2,7 @@
 
 #include <algorithm>  // for find, transform
 #include <iterator>   // for back_insert_iterator, back_inserter, begin
+#include <mutex>      // for mutex
 #include <utility>    // for move
 
 #include "model/Layer.h"     // for Layer, Layer::Index
@@ -11,7 +12,8 @@
 
 #include "BackgroundImage.h"  // for BackgroundImage
 
-XojPage::XojPage(double width, double height, bool suppressLayerCreation): width(width), height(height), bgType(PageTypeFormat::Lined) {
+XojPage::XojPage(double width, double height, bool suppressLayerCreation):
+        width(width), height(height), bgType(PageTypeFormat::Lined), documentLock(nullptr) {
     if (!suppressLayerCreation) {
         // ensure at least one valid layer exists
         this->addLayer(new Layer());
@@ -31,7 +33,8 @@ XojPage::XojPage(XojPage const& page):
         currentLayer(page.currentLayer),
         bgType(page.bgType),
         pdfBackgroundPage(page.pdfBackgroundPage),
-        backgroundColor(page.backgroundColor) {
+        backgroundColor(page.backgroundColor),
+        documentLock(page.documentLock) {
     this->layer.reserve(page.layer.size());
     std::transform(begin(page.layer), end(page.layer), std::back_inserter(this->layer),
                    [](auto* layer) { return layer->clone(); });
@@ -172,3 +175,15 @@ auto XojPage::getBackgroundName() const -> std::string { return backgroundName.v
 auto XojPage::backgroundHasName() const -> bool { return backgroundName.has_value(); }
 
 void XojPage::setBackgroundName(const std::string& newName) { backgroundName = newName; }
+
+void XojPage::setDocumentLock(std::mutex* lock) { this->documentLock = lock; }
+
+void XojPage::lock() {
+    xoj_assert(documentLock);
+    this->documentLock->lock();
+}
+
+void XojPage::unlock() {
+    xoj_assert(documentLock);
+    this->documentLock->unlock();
+}

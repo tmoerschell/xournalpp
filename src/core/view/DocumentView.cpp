@@ -70,6 +70,7 @@ void DocumentView::drawPage(PageRef page, cairo_t* cr, bool dontRenderEditingStr
 
     drawBackground(flags);
 
+    page->lock();
     xoj::view::Context context{cr, (xoj::view::NonAudioTreatment)this->markAudioStroke,
                                (xoj::view::EditionTreatment) !this->dontRenderEditingStroke, xoj::view::NORMAL_COLOR};
     for (Layer* layer: *page->getLayers()) {
@@ -78,6 +79,7 @@ void DocumentView::drawPage(PageRef page, cairo_t* cr, bool dontRenderEditingStr
             layerView.draw(context);
         }
     }
+    page->unlock();
 
     finializeDrawing();
 }
