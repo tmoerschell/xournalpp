@@ -75,11 +75,11 @@ void PreviewJob::drawPage() {
     PreviewRenderType type = this->sidebarPreview->getRenderType();
     Layer::Index layer = 0;
 
-    doc->lock();
-
     // getLayer is not defined for page preview
     if (type != RENDER_TYPE_PAGE_PREVIEW) {
         layer = (dynamic_cast<SidebarPreviewLayerEntry*>(this->sidebarPreview))->getLayer();
+
+        doc->lock();
     }
 
     auto context = xoj::view::Context::createDefault(cr2);
@@ -101,6 +101,7 @@ void PreviewJob::drawPage() {
                 layerView.draw(context);
             }
             view.finializeDrawing();
+            doc->unlock();
             break;
 
         case RENDER_TYPE_PAGE_LAYERSTACK:
@@ -113,15 +114,16 @@ void PreviewJob::drawPage() {
                 layerView.draw(context);
             }
             view.finializeDrawing();
+            doc->unlock();
             break;
 
         default:
             // unknown type
+            doc->unlock();
             break;
     }
 
     cairo_destroy(cr2);
-    doc->unlock();
 }
 
 void PreviewJob::clipToPage() {
