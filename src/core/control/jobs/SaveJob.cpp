@@ -89,7 +89,9 @@ void SaveJob::updatePreview(Control* control) {
         }
 
         DocumentView view;
+        doc->unlock();  // not pretty at all
         view.drawPage(page, cr, true /* don't render erasable */, flags);
+        doc->lock();
         cairo_destroy(cr);
         doc->setPreview(crBuffer);
         cairo_surface_destroy(crBuffer);
