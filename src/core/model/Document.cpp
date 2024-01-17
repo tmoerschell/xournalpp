@@ -85,6 +85,8 @@ void Document::unlock() {
 */
 auto Document::tryLock() -> bool { return this->documentLock.try_lock(); }
 
+auto Document::getLock() -> std::mutex& { return this->documentLock; }
+
 void Document::clearDocument(bool destroy) {
     if (this->preview) {
         cairo_surface_destroy(this->preview);
@@ -397,6 +399,7 @@ void Document::deletePage(size_t pNr) {
 }
 
 void Document::insertPage(const PageRef& p, size_t position) {
+    p->setDocumentLock(&this->documentLock);
     this->pages.insert(this->pages.begin() + as_signed(position), p);
 
     // Reset the page index
@@ -405,6 +408,7 @@ void Document::insertPage(const PageRef& p, size_t position) {
 }
 
 void Document::addPage(const PageRef& p) {
+    p->setDocumentLock(&this->documentLock);
     this->pages.push_back(p);
 
     // Reset the page index
@@ -454,6 +458,10 @@ auto Document::operator=(const Document& doc) -> Document& {
     indexPdfPages();
     buildContentsModel();
     updateIndexPageNumbers();
+
+    for (auto& p: this->pages) {
+        p->setDocumentLock(&documentLock);
+    }
 
     bool lastLock = tryLock();
     unlock();

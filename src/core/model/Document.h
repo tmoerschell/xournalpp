@@ -97,6 +97,7 @@ public:
     void lock();
     void unlock();
     bool tryLock();
+    std::mutex& getLock();
 
 private:
     void buildContentsModel();
