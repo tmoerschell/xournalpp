@@ -11,3 +11,17 @@
  */
 
 #pragma once
+
+#include "control/file/SequentialAccessFileHandler.h"
+
+#include "filesystem.h"
+
+class XoppFileHandler: public SequentialAccessFileHandler {
+public:
+    XoppFileHandler();
+    XoppFileHandler(const fs::path& path);
+    virtual ~XoppFileHandler() override;
+
+    virtual bool loadWholeDocument(Document& document) override;
+    virtual bool saveWholeDocument(const Document& document) override;
+};
