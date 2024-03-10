@@ -274,7 +274,7 @@ auto exportImg(const char* input, const char* output, const char* range, const c
     LoadHandler loader;
     Document* doc = loader.loadDocument(input);
     if (doc == nullptr) {
-        g_error("%s", loader.getLastError().c_str());
+        g_error("Document was not loaded");
     }
 
     exitOnMissingPdfFileName(loader);
@@ -328,7 +328,7 @@ auto exportPdf(const char* input, const char* output, const char* range, const c
     LoadHandler loader;
     Document* doc = loader.loadDocument(input);
     if (doc == nullptr) {
-        g_error("%s", loader.getLastError().c_str());
+        g_error("Document was not loaded");
     }
 
     exitOnMissingPdfFileName(loader);
