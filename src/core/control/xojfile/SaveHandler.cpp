@@ -15,6 +15,7 @@
 #include "control/xml/XmlPointNode.h"          // for XmlPointNode
 #include "control/xml/XmlTexNode.h"            // for XmlTexNode
 #include "control/xml/XmlTextNode.h"           // for XmlTextNode
+#include "control/xojfile/XmlNames.h"          // for XmlAttrs
 #include "model/AudioElement.h"                // for AudioElement
 #include "model/BackgroundImage.h"             // for BackgroundImage
 #include "model/Document.h"                    // for Document
@@ -76,8 +77,8 @@ void SaveHandler::prepareSave(const Document* doc, const fs::path& target) {
 }
 
 void SaveHandler::writeHeader() {
-    this->root->setAttrib("creator", PROJECT_STRING);
-    this->root->setAttrib("fileversion", FILE_FORMAT_VERSION);
+    this->root->setAttrib(XmlAttrs::CREATOR_STR, PROJECT_STRING);
+    this->root->setAttrib(XmlAttrs::FILEVERSION_STR, FILE_FORMAT_VERSION);
     this->root->addChild(new XmlTextNode("title", std::string{"Xournal++ document - see "} + PROJECT_HOMEPAGE_URL));
 }
 
@@ -91,8 +92,8 @@ auto SaveHandler::getColorStr(Color c, unsigned char alpha) -> std::string {
 void SaveHandler::writeTimestamp(XmlAudioNode* xmlAudioNode, const AudioElement* audioElement) {
     if (!audioElement->getAudioFilename().empty()) {
         /** set stroke timestamp value to the XmlPointNode */
-        xmlAudioNode->setAttrib("ts", audioElement->getTimestamp());
-        xmlAudioNode->setAttrib("fn", audioElement->getAudioFilename().u8string());
+        xmlAudioNode->setAttrib(XmlAttrs::TS_STR, audioElement->getTimestamp());
+        xmlAudioNode->setAttrib(XmlAttrs::FN_STR, audioElement->getAudioFilename().u8string());
     }
 }
 
@@ -102,19 +103,19 @@ void SaveHandler::visitStroke(XmlPointNode* stroke, const Stroke* s) {
     unsigned char alpha = 0xff;
 
     if (t == StrokeTool::PEN) {
-        stroke->setAttrib("tool", "pen");
+        stroke->setAttrib(XmlAttrs::TOOL_STR, "pen");
         writeTimestamp(stroke, s);
     } else if (t == StrokeTool::ERASER) {
-        stroke->setAttrib("tool", "eraser");
+        stroke->setAttrib(XmlAttrs::TOOL_STR, "eraser");
     } else if (t == StrokeTool::HIGHLIGHTER) {
-        stroke->setAttrib("tool", "highlighter");
+        stroke->setAttrib(XmlAttrs::TOOL_STR, "highlighter");
         alpha = 0x7f;
     } else {
         g_warning("Unknown StrokeTool::Value");
-        stroke->setAttrib("tool", "pen");
+        stroke->setAttrib(XmlAttrs::TOOL_STR, "pen");
     }
 
-    stroke->setAttrib("color", getColorStr(s->getColor(), alpha).c_str());
+    stroke->setAttrib(XmlAttrs::COLOR_STR, getColorStr(s->getColor(), alpha).c_str());
 
     const auto& pts = s->getPointVector();
 
@@ -125,9 +126,9 @@ void SaveHandler::visitStroke(XmlPointNode* stroke, const Stroke* s) {
         values.reserve(pts.size() + 1);
         values.emplace_back(s->getWidth());
         std::transform(pts.begin(), pts.end() - 1, std::back_inserter(values), [](const Point& p) { return p.z; });
-        stroke->setAttrib("width", std::move(values));
+        stroke->setAttrib(XmlAttrs::WIDTH_STR, std::move(values));
     } else {
-        stroke->setAttrib("width", s->getWidth());
+        stroke->setAttrib(XmlAttrs::WIDTH_STR, s->getWidth());
     }
 
     visitStrokeExtended(stroke, s);
@@ -138,23 +139,23 @@ void SaveHandler::visitStroke(XmlPointNode* stroke, const Stroke* s) {
  */
 void SaveHandler::visitStrokeExtended(XmlPointNode* stroke, const Stroke* s) {
     if (s->getFill() != -1) {
-        stroke->setAttrib("fill", s->getFill());
+        stroke->setAttrib(XmlAttrs::FILL_STR, s->getFill());
     }
 
     const StrokeCapStyle capStyle = s->getStrokeCapStyle();
     if (capStyle == StrokeCapStyle::BUTT) {
-        stroke->setAttrib("capStyle", "butt");
+        stroke->setAttrib(XmlAttrs::CAPSTYLE_STR, "butt");
     } else if (capStyle == StrokeCapStyle::ROUND) {
-        stroke->setAttrib("capStyle", "round");
+        stroke->setAttrib(XmlAttrs::CAPSTYLE_STR, "round");
     } else if (capStyle == StrokeCapStyle::SQUARE) {
-        stroke->setAttrib("capStyle", "square");
+        stroke->setAttrib(XmlAttrs::CAPSTYLE_STR, "square");
     } else {
         g_warning("Unknown stroke cap type: %i", capStyle);
-        stroke->setAttrib("capStyle", "round");
+        stroke->setAttrib(XmlAttrs::CAPSTYLE_STR, "round");
     }
 
     if (s->getLineStyle().hasDashes()) {
-        stroke->setAttrib("style", StrokeStyle::formatStyle(s->getLineStyle()));
+        stroke->setAttrib(XmlAttrs::STYLE_STR, StrokeStyle::formatStyle(s->getLineStyle()));
     }
 }
 
@@ -162,7 +163,7 @@ void SaveHandler::visitLayer(XmlNode* page, const Layer* l) {
     auto* layer = new XmlNode("layer");
     page->addChild(layer);
     if (l->hasName()) {
-        layer->setAttrib("name", l->getName().c_str());
+        layer->setAttrib(XmlAttrs::NAME_STR, l->getName().c_str());
     }
 
     for (const auto& e: l->getElementsView()) {
@@ -178,11 +179,11 @@ void SaveHandler::visitLayer(XmlNode* page, const Layer* l) {
 
             const XojFont& f = t->getFont();
 
-            text->setAttrib("font", f.getName().c_str());
-            text->setAttrib("size", f.getSize());
-            text->setAttrib("x", t->getX());
-            text->setAttrib("y", t->getY());
-            text->setAttrib("color", getColorStr(t->getColor()).c_str());
+            text->setAttrib(XmlAttrs::FONT_STR, f.getName().c_str());
+            text->setAttrib(XmlAttrs::SIZE_STR, f.getSize());
+            text->setAttrib(XmlAttrs::X_STR, t->getX());
+            text->setAttrib(XmlAttrs::Y_STR, t->getY());
+            text->setAttrib(XmlAttrs::COLOR_STR, getColorStr(t->getColor()).c_str());
 
             writeTimestamp(text, t);
         } else if (e->getType() == ELEMENT_IMAGE) {
@@ -192,20 +193,20 @@ void SaveHandler::visitLayer(XmlNode* page, const Layer* l) {
 
             image->setImage(i->getImage());
 
-            image->setAttrib("left", i->getX());
-            image->setAttrib("top", i->getY());
-            image->setAttrib("right", i->getX() + i->getElementWidth());
-            image->setAttrib("bottom", i->getY() + i->getElementHeight());
+            image->setAttrib(XmlAttrs::LEFT_STR, i->getX());
+            image->setAttrib(XmlAttrs::TOP_STR, i->getY());
+            image->setAttrib(XmlAttrs::RIGHT_STR, i->getX() + i->getElementWidth());
+            image->setAttrib(XmlAttrs::BOTTOM_STR, i->getY() + i->getElementHeight());
         } else if (e->getType() == ELEMENT_TEXIMAGE) {
             auto* i = dynamic_cast<const TexImage*>(e);
             auto* image = new XmlTexNode("teximage", std::string(i->getBinaryData()));
             layer->addChild(image);
 
-            image->setAttrib("text", i->getText().c_str());
-            image->setAttrib("left", i->getX());
-            image->setAttrib("top", i->getY());
-            image->setAttrib("right", i->getX() + i->getElementWidth());
-            image->setAttrib("bottom", i->getY() + i->getElementHeight());
+            image->setAttrib(XmlAttrs::TEXT_STR, i->getText().c_str());
+            image->setAttrib(XmlAttrs::LEFT_STR, i->getX());
+            image->setAttrib(XmlAttrs::TOP_STR, i->getY());
+            image->setAttrib(XmlAttrs::RIGHT_STR, i->getX() + i->getElementWidth());
+            image->setAttrib(XmlAttrs::BOTTOM_STR, i->getY() + i->getElementHeight());
         }
     }
 }
@@ -213,8 +214,8 @@ void SaveHandler::visitLayer(XmlNode* page, const Layer* l) {
 void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, int id, const fs::path& target) {
     auto* page = new XmlNode("page");
     root->addChild(page);
-    page->setAttrib("width", p->getWidth());
-    page->setAttrib("height", p->getHeight());
+    page->setAttrib(XmlAttrs::WIDTH_STR, p->getWidth());
+    page->setAttrib(XmlAttrs::HEIGHT_STR, p->getHeight());
 
     auto* background = new XmlNode("background");
     page->addChild(background);
@@ -227,16 +228,16 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
          * DO NOT CHANGE THE ORDER OF THE ATTRIBUTES!
          */
 
-        background->setAttrib("type", "pdf");
+        background->setAttrib(XmlAttrs::TYPE_STR, "pdf");
         if (!firstPdfPageVisited) {
             firstPdfPageVisited = true;
 
             if (doc->isAttachPdf()) {
-                background->setAttrib("domain", "attach");
+                background->setAttrib(XmlAttrs::DOMAIN_STR, "attach");
                 auto filepath = doc->getFilepath();
                 Util::clearExtensions(filepath);
                 filepath += ".xopp.bg.pdf";
-                background->setAttrib("filename", "bg.pdf");
+                background->setAttrib(XmlAttrs::FILENAME_STR, "bg.pdf");
 
                 GError* error = nullptr;
                 if (!exists(filepath)) {
@@ -254,26 +255,26 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
                 }
             } else {
                 // "absolute" just means path. For backward compatibility, it is hard to change the word
-                background->setAttrib("domain", "absolute");
+                background->setAttrib(XmlAttrs::DOMAIN_STR, "absolute");
                 auto normalizedPath = Util::normalizeAssetPath(doc->getPdfFilepath(), target.parent_path(),
                                                                doc->getPathStorageMode());
-                background->setAttrib("filename", std::move(normalizedPath));
+                background->setAttrib(XmlAttrs::FILENAME_STR, std::move(normalizedPath));
             }
         }
-        background->setAttrib("pageno", p->getPdfPageNr() + 1);
+        background->setAttrib(XmlAttrs::PAGENO_STR, p->getPdfPageNr() + 1);
     } else if (p->getBackgroundType().isImagePage()) {
-        background->setAttrib("type", "pixmap");
+        background->setAttrib(XmlAttrs::TYPE_STR, "pixmap");
 
         int cloneId = p->getBackgroundImage().getCloneId();
         if (cloneId != -1) {
-            background->setAttrib("domain", "clone");
+            background->setAttrib(XmlAttrs::DOMAIN_STR, "clone");
             char* filename = g_strdup_printf("%i", cloneId);
-            background->setAttrib("filename", filename);
+            background->setAttrib(XmlAttrs::FILENAME_STR, filename);
             g_free(filename);
         } else if (p->getBackgroundImage().isAttached() && p->getBackgroundImage().getPixbuf()) {
             char* filename = g_strdup_printf("bg_%d.png", this->attachBgId++);
-            background->setAttrib("domain", "attach");
-            background->setAttrib("filename", filename);
+            background->setAttrib(XmlAttrs::DOMAIN_STR, "attach");
+            background->setAttrib(XmlAttrs::FILENAME_STR, filename);
 
             backgroundImages.emplace_back(p->getBackgroundImage());
 
@@ -288,10 +289,10 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
             g_free(filename);
         } else {
             // "absolute" just means path. For backward compatibility, it is hard to change the word
-            background->setAttrib("domain", "absolute");
+            background->setAttrib(XmlAttrs::DOMAIN_STR, "absolute");
             auto normalizedPath = Util::normalizeAssetPath(p->getBackgroundImage().getFilepath(), target.parent_path(),
                                                            doc->getPathStorageMode());
-            background->setAttrib("filename", std::move(normalizedPath));
+            background->setAttrib(XmlAttrs::FILENAME_STR, std::move(normalizedPath));
 
             BackgroundImage img = p->getBackgroundImage();
 
@@ -318,20 +319,21 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
 }
 
 void SaveHandler::writeSolidBackground(XmlNode* background, ConstPageRef p) {
-    background->setAttrib("type", "solid");
-    background->setAttrib("color", getColorStr(p->getBackgroundColor()));
-    background->setAttrib("style", PageTypeHandler::getStringForPageTypeFormat(p->getBackgroundType().format));
+    background->setAttrib(XmlAttrs::TYPE_STR, "solid");
+    background->setAttrib(XmlAttrs::COLOR_STR, getColorStr(p->getBackgroundColor()));
+    background->setAttrib(XmlAttrs::STYLE_STR,
+                          PageTypeHandler::getStringForPageTypeFormat(p->getBackgroundType().format));
 
     // Not compatible with Xournal, so the background needs
     // to be changed to a basic one!
     if (!p->getBackgroundType().config.empty()) {
-        background->setAttrib("config", p->getBackgroundType().config);
+        background->setAttrib(XmlAttrs::CONFIG_STR, p->getBackgroundType().config);
     }
 }
 
 void SaveHandler::writeBackgroundName(XmlNode* background, ConstPageRef p) {
     if (p->backgroundHasName()) {
-        background->setAttrib("name", p->getBackgroundName());
+        background->setAttrib(XmlAttrs::NAME_STR, p->getBackgroundName());
     }
 }
 
