@@ -15,7 +15,8 @@
 #include "control/xml/XmlPointNode.h"          // for XmlPointNode
 #include "control/xml/XmlTexNode.h"            // for XmlTexNode
 #include "control/xml/XmlTextNode.h"           // for XmlTextNode
-#include "control/xojfile/XmlNames.h"          // for XmlAttrs
+#include "control/xojfile/XmlAttrs.h"          // for XmlAttrs
+#include "control/xojfile/XmlTags.h"           // for XmlTags
 #include "model/AudioElement.h"                // for AudioElement
 #include "model/BackgroundImage.h"             // for BackgroundImage
 #include "model/Document.h"                    // for Document
@@ -40,6 +41,10 @@
 #include "config.h"  // for FILE_FORMAT_VERSION
 #include "filesystem.h"
 
+
+static constexpr auto& TAG_NAMES = XmlTags::NAMES;
+using TagType = XmlTags::Type;
+
 SaveHandler::SaveHandler() {
     this->firstPdfPageVisited = false;
     this->attachBgId = 1;
@@ -54,13 +59,13 @@ void SaveHandler::prepareSave(const Document* doc, const fs::path& target) {
     this->firstPdfPageVisited = false;
     this->attachBgId = 1;
 
-    root.reset(new XmlNode("xournal"));
+    root.reset(new XmlNode(TAG_NAMES[TagType::XOURNAL]));
 
     writeHeader();
 
     cairo_surface_t* preview = doc->getPreview();
     if (preview) {
-        auto* image = new XmlImageNode("preview");
+        auto* image = new XmlImageNode(TAG_NAMES[TagType::PREVIEW]);
         image->setImage(preview);
         this->root->addChild(image);
     }
@@ -79,7 +84,8 @@ void SaveHandler::prepareSave(const Document* doc, const fs::path& target) {
 void SaveHandler::writeHeader() {
     this->root->setAttrib(XmlAttrs::CREATOR_STR, PROJECT_STRING);
     this->root->setAttrib(XmlAttrs::FILEVERSION_STR, FILE_FORMAT_VERSION);
-    this->root->addChild(new XmlTextNode("title", std::string{"Xournal++ document - see "} + PROJECT_HOMEPAGE_URL));
+    this->root->addChild(new XmlTextNode(TAG_NAMES[TagType::TITLE],
+                                         std::string{"Xournal++ document - see "} + PROJECT_HOMEPAGE_URL));
 }
 
 auto SaveHandler::getColorStr(Color c, unsigned char alpha) -> std::string {
@@ -160,7 +166,7 @@ void SaveHandler::visitStrokeExtended(XmlPointNode* stroke, const Stroke* s) {
 }
 
 void SaveHandler::visitLayer(XmlNode* page, const Layer* l) {
-    auto* layer = new XmlNode("layer");
+    auto* layer = new XmlNode(TAG_NAMES[TagType::LAYER]);
     page->addChild(layer);
     if (l->hasName()) {
         layer->setAttrib(XmlAttrs::NAME_STR, l->getName().c_str());
@@ -169,12 +175,12 @@ void SaveHandler::visitLayer(XmlNode* page, const Layer* l) {
     for (const auto& e: l->getElementsView()) {
         if (e->getType() == ELEMENT_STROKE) {
             auto* s = dynamic_cast<const Stroke*>(e);
-            auto* stroke = new XmlPointNode("stroke");
+            auto* stroke = new XmlPointNode(TAG_NAMES[TagType::STROKE]);
             layer->addChild(stroke);
             visitStroke(stroke, s);
         } else if (e->getType() == ELEMENT_TEXT) {
             const Text* t = dynamic_cast<const Text*>(e);
-            auto* text = new XmlTextNode("text", t->getText());
+            auto* text = new XmlTextNode(TAG_NAMES[TagType::TEXT], t->getText());
             layer->addChild(text);
 
             const XojFont& f = t->getFont();
@@ -188,7 +194,7 @@ void SaveHandler::visitLayer(XmlNode* page, const Layer* l) {
             writeTimestamp(text, t);
         } else if (e->getType() == ELEMENT_IMAGE) {
             auto* i = dynamic_cast<const Image*>(e);
-            auto* image = new XmlImageNode("image");
+            auto* image = new XmlImageNode(TAG_NAMES[TagType::IMAGE]);
             layer->addChild(image);
 
             image->setImage(i->getImage());
@@ -199,7 +205,7 @@ void SaveHandler::visitLayer(XmlNode* page, const Layer* l) {
             image->setAttrib(XmlAttrs::BOTTOM_POS_STR, i->getY() + i->getElementHeight());
         } else if (e->getType() == ELEMENT_TEXIMAGE) {
             auto* i = dynamic_cast<const TexImage*>(e);
-            auto* image = new XmlTexNode("teximage", std::string(i->getBinaryData()));
+            auto* image = new XmlTexNode(TAG_NAMES[TagType::TEXIMAGE], std::string(i->getBinaryData()));
             layer->addChild(image);
 
             image->setAttrib(XmlAttrs::TEXT_STR, i->getText().c_str());
@@ -212,12 +218,12 @@ void SaveHandler::visitLayer(XmlNode* page, const Layer* l) {
 }
 
 void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, int id, const fs::path& target) {
-    auto* page = new XmlNode("page");
+    auto* page = new XmlNode(TAG_NAMES[TagType::PAGE]);
     root->addChild(page);
     page->setAttrib(XmlAttrs::WIDTH_STR, p->getWidth());
     page->setAttrib(XmlAttrs::HEIGHT_STR, p->getHeight());
 
-    auto* background = new XmlNode("background");
+    auto* background = new XmlNode(TAG_NAMES[TagType::BACKGROUND]);
     page->addChild(background);
 
     writeBackgroundName(background, p);
@@ -309,7 +315,7 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
 
     // no layer, but we need to write one layer, else the old Xournal cannot read the file
     if (p->getLayerCount() == 0) {
-        auto* layer = new XmlNode("layer");
+        auto* layer = new XmlNode(TAG_NAMES[TagType::LAYER]);
         page->addChild(layer);
     }
 
