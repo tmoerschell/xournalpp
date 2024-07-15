@@ -16,6 +16,7 @@
 #include "control/xml/XmlTexNode.h"            // for XmlTexNode
 #include "control/xml/XmlTextNode.h"           // for XmlTextNode
 #include "control/xojfile/XmlAttrs.h"          // for XmlAttrs
+#include "control/xojfile/XmlParserHelper.h"   // for Domain, DOMAIN_NAMES
 #include "control/xojfile/XmlTags.h"           // for XmlTags
 #include "model/AudioElement.h"                // for AudioElement
 #include "model/BackgroundImage.h"             // for BackgroundImage
@@ -225,6 +226,8 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
 
     writeBackgroundName(background, p);
 
+    using namespace XmlParserHelper;  // for Domain and DOMAIN_NAMES
+
     if (p->getBackgroundType().isPdfPage()) {
         /**
          * ATTENTION! The original xournal can only read the XML if the attributes are in the right order!
@@ -236,7 +239,7 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
             firstPdfPageVisited = true;
 
             if (doc->isAttachPdf()) {
-                background->setAttrib(XmlAttrs::DOMAIN_STR, "attach");
+                background->setAttrib(XmlAttrs::DOMAIN_STR, DOMAIN_NAMES[Domain::ATTACH]);
                 auto filepath = doc->getFilepath();
                 Util::clearExtensions(filepath);
                 filepath += ".xopp.bg.pdf";
@@ -258,7 +261,7 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
                 }
             } else {
                 // "absolute" just means path. For backward compatibility, it is hard to change the word
-                background->setAttrib(XmlAttrs::DOMAIN_STR, "absolute");
+                background->setAttrib(XmlAttrs::DOMAIN_STR, DOMAIN_NAMES[Domain::ABSOLUTE]);
                 auto normalizedPath = Util::normalizeAssetPath(doc->getPdfFilepath(), target.parent_path(),
                                                                doc->getPathStorageMode());
                 background->setAttrib(XmlAttrs::FILENAME_STR, std::move(normalizedPath));
@@ -270,13 +273,13 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
 
         int cloneId = p->getBackgroundImage().getCloneId();
         if (cloneId != -1) {
-            background->setAttrib(XmlAttrs::DOMAIN_STR, "clone");
+            background->setAttrib(XmlAttrs::DOMAIN_STR, DOMAIN_NAMES[Domain::CLONE]);
             char* filename = g_strdup_printf("%i", cloneId);
             background->setAttrib(XmlAttrs::FILENAME_STR, filename);
             g_free(filename);
         } else if (p->getBackgroundImage().isAttached() && p->getBackgroundImage().getPixbuf()) {
             char* filename = g_strdup_printf("bg_%d.png", this->attachBgId++);
-            background->setAttrib(XmlAttrs::DOMAIN_STR, "attach");
+            background->setAttrib(XmlAttrs::DOMAIN_STR, DOMAIN_NAMES[Domain::ATTACH]);
             background->setAttrib(XmlAttrs::FILENAME_STR, filename);
 
             backgroundImages.emplace_back(p->getBackgroundImage());
@@ -292,7 +295,7 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
             g_free(filename);
         } else {
             // "absolute" just means path. For backward compatibility, it is hard to change the word
-            background->setAttrib(XmlAttrs::DOMAIN_STR, "absolute");
+            background->setAttrib(XmlAttrs::DOMAIN_STR, DOMAIN_NAMES[Domain::ABSOLUTE]);
             auto normalizedPath = Util::normalizeAssetPath(p->getBackgroundImage().getFilepath(), target.parent_path(),
                                                            doc->getPathStorageMode());
             background->setAttrib(XmlAttrs::FILENAME_STR, std::move(normalizedPath));
