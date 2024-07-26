@@ -22,7 +22,8 @@
 template <>
 auto XmlParserHelper::getAttrib<std::string>(const std::string& name,
                                              const AttributeMap& attributeMap) -> std::optional<std::string> {
-    auto it = attributeMap.find(name);
+    auto it = std::find_if(attributeMap.begin(), attributeMap.end(),
+                           [&name](const std::pair<std::string, std::string>& p) { return p.first == name; });
     if (it != attributeMap.end()) {
         return it->second;
     } else {
@@ -33,7 +34,8 @@ auto XmlParserHelper::getAttrib<std::string>(const std::string& name,
 template <>
 auto XmlParserHelper::getAttribMandatory<std::string>(const std::string& name, const AttributeMap& attributeMap,
                                                       const std::string& defaultValue, bool warn) -> std::string {
-    auto it = attributeMap.find(name);
+    auto it = std::find_if(attributeMap.begin(), attributeMap.end(),
+                           [&name](const std::pair<std::string, std::string>& p) { return p.first == name; });
     if (it != attributeMap.end()) {
         return it->second;
     } else {

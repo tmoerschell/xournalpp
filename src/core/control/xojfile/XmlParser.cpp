@@ -727,7 +727,8 @@ auto XmlParser::getAttributeMap() -> XmlParserHelper::AttributeMap {
 
     XmlParserHelper::AttributeMap attributeMap;
     while (xmlTextReaderMoveToNextAttribute(this->reader.get())) {
-        attributeMap[currentName()] = reinterpret_cast<const char*>(xmlTextReaderConstValue(this->reader.get()));
+        attributeMap.push_back(std::make_pair(
+                currentName(), reinterpret_cast<const char*>(xmlTextReaderConstValue(this->reader.get()))));
     }
 
     DEBUG_PARSER(debugPrintAttributes(attributeMap));

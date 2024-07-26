@@ -11,12 +11,13 @@
 
 #pragma once
 
+#include <algorithm>
 #include <istream>
 #include <optional>
 #include <ostream>
 #include <sstream>
 #include <string>
-#include <unordered_map>
+#include <utility>
 
 #include <glib.h>
 
@@ -31,7 +32,7 @@ class XmlParser;
 
 namespace XmlParserHelper {
 
-using AttributeMap = std::unordered_map<std::string, std::string>;
+using AttributeMap = std::vector<std::pair<std::string, std::string>>;
 
 // generic templates
 template <typename T>
@@ -80,7 +81,8 @@ std::istream& operator>>(std::istream& stream, LineStyle& style);
 
 template <typename T>
 auto XmlParserHelper::getAttrib(const std::string& name, const AttributeMap& attributeMap) -> std::optional<T> {
-    auto it = attributeMap.find(name);
+    auto it = std::find_if(attributeMap.begin(), attributeMap.end(),
+                           [&name](const std::pair<std::string, std::string>& p) { return p.first == name; });
     if (it != attributeMap.end()) {
         auto stream = serdes_stream<std::istringstream>(it->second);
         T value{};
