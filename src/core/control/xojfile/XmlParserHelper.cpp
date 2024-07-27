@@ -20,9 +20,14 @@
 // template specializations
 
 template <>
-auto XmlParserHelper::getAttrib<std::string>(const std::string& name,
+auto XmlParserHelper::getAttrib<std::string>(xoj::xml_attrs::Type name,
                                              const AttributeMap& attributeMap) -> std::optional<std::string> {
+<<<<<<< Updated upstream
     auto it = attributeMap.find(name);
+=======
+    auto it = std::find_if(attributeMap.begin(), attributeMap.end(),
+                           [&name](const std::pair<xoj::xml_attrs::Type, std::string>& p) { return p.first == name; });
+>>>>>>> Stashed changes
     if (it != attributeMap.end()) {
         return it->second;
     } else {
@@ -31,9 +36,14 @@ auto XmlParserHelper::getAttrib<std::string>(const std::string& name,
 }
 
 template <>
-auto XmlParserHelper::getAttribMandatory<std::string>(const std::string& name, const AttributeMap& attributeMap,
+auto XmlParserHelper::getAttribMandatory<std::string>(xoj::xml_attrs::Type name, const AttributeMap& attributeMap,
                                                       const std::string& defaultValue, bool warn) -> std::string {
+<<<<<<< Updated upstream
     auto it = attributeMap.find(name);
+=======
+    auto it = std::find_if(attributeMap.begin(), attributeMap.end(),
+                           [&name](const std::pair<xoj::xml_attrs::Type, std::string>& p) { return p.first == name; });
+>>>>>>> Stashed changes
     if (it != attributeMap.end()) {
         return it->second;
     } else {

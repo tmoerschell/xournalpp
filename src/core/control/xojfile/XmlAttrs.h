@@ -11,9 +11,65 @@
 
 #pragma once
 
+#include <vector>
+
+#include "control/xojfile/XmlTags.h"
+#include "util/EnumIndexedArray.h"
+
 
 // Names of attributes
 namespace xoj::xml_attrs {
+
+static const EnumIndexedArray<std::vector<const char*>, xoj::xml_tags::Type> NAMES = {
+        std::vector<const char*>{},                                     // <unknown>
+        std::vector<const char*>{"creator", "version", "fileversion"},  // xournal
+        std::vector<const char*>{"version"},                            // MrWriter
+        std::vector<const char*>{},                                     // title
+        std::vector<const char*>{},                                     // preview
+        std::vector<const char*>{"width", "height"},                    // page
+        std::vector<const char*>{"fn"},                                 // audio
+        std::vector<const char*>{"name", "type", "style", "config", "color", "domain", "filename",
+                                 "pageno"},    // background
+        std::vector<const char*>{"name"},      // layer
+        std::vector<const char*>{"fn", "ts"},  // timestamp
+        std::vector<const char*>{"tool", "pressures", "color", "wudth", "fill", "capStyle", "style", "fn",
+                                 "ts"},                                           // stroke
+        std::vector<const char*>{"font", "size", "x", "y", "color", "fn", "ts"},  // text
+        std::vector<const char*>{"left", "top", "right", "bottom"},               // image
+        std::vector<const char*>{"text", "left", "top", "right", "bottom"},       // teximage
+        std::vector<const char*>{"path"},                                         // attachment
+};
+
+enum class Type : size_t {
+    CREATOR,
+    VERSION,
+    FILEVERSION,
+    NAME,
+    STYLE,
+    CONFIG,
+    COLOR,
+    DOMAIN,
+    FILENAME,
+    PAGE_NUMBER,
+    AUDIO_FILENAME,
+    AUDIO_TIMESTAMP,
+    TOOL,
+    PRESSURES,
+    FILL,
+    CAPSTYLE,
+    FONT,
+    SIZE,
+    X_COORD,
+    Y_COORD,
+    LEFT_POS,
+    TOP_POS,
+    RIGHT_POS,
+    BOTTOM_POS,
+    TEXT,
+    PATH,
+
+    ENUMERATOR_COUNT
+};
 
 // xournal
 constexpr auto CREATOR_STR = "creator";

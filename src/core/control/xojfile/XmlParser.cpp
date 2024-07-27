@@ -724,10 +724,39 @@ void XmlParser::parseAttachment() {
 
 auto XmlParser::getAttributeMap() -> XmlParserHelper::AttributeMap {
     xoj_assert(xmlTextReaderNodeType(this->reader.get()) == XML_ELEMENT_NODE);
+    xoj_assert(!this->hierarchy.empty());
+    using CANDIDATES = xoj::xml_attrs::NAMES[this->hierarchy.top()];
+
+    if (CANDIDATES.empty()) {
+        // tag was not expected to have attributes
+        return {};
+    }
 
     XmlParserHelper::AttributeMap attributeMap;
+    auto it = CANDIDATES.begin();
+    auto end = CANDIDATES.begin();
     while (xmlTextReaderMoveToNextAttribute(this->reader.get())) {
+<<<<<<< Updated upstream
         attributeMap[currentName()] = reinterpret_cast<const char*>(xmlTextReaderConstValue(this->reader.get()));
+=======
+        do {
+            if (currentName() == *it) {
+                attributeMap.push_back(
+                        std::make_pair(static_cast<xoj::xml_attrs::Type>(std::distance(CANDIDATES.begin()), it),
+                                       reinterpret_cast<const char*>(xmlTextReaderConstValue(this->reader.get()))));
+                end = std::next(it);
+                if (end == CANDIDATES.end()) {
+                    // loop around
+                    end = CANDIDATES.begin();
+                }
+            }
+            it++;
+            if (it == CANDIDATES.end()) {
+                // loop around
+                it = CANDIDATES.begin();
+            }
+        } while (it != end);
+>>>>>>> Stashed changes
     }
 
     DEBUG_PARSER(debugPrintAttributes(attributeMap));

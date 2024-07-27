@@ -31,19 +31,23 @@ class XmlParser;
 
 namespace XmlParserHelper {
 
+<<<<<<< Updated upstream
 using AttributeMap = std::unordered_map<std::string, std::string>;
+=======
+using AttributeMap = std::vector<std::pair<xoj::xml_attrs::Type, std::string>>;
+>>>>>>> Stashed changes
 
 // generic templates
 template <typename T>
-std::optional<T> getAttrib(const std::string& name, const AttributeMap& attributeMap);
+std::optional<T> getAttrib(xoj::xml_attrs::Type name, const AttributeMap& attributeMap);
 template <typename T>
-T getAttribMandatory(const std::string& name, const AttributeMap& attributeMap, const T& defaultValue = {},
+T getAttribMandatory(xoj::xml_attrs::Type name, const AttributeMap& attributeMap, const T& defaultValue = {},
                      bool warn = true);
 // specializations
 template <>
-std::optional<std::string> getAttrib<std::string>(const std::string& name, const AttributeMap& attributeMap);
+std::optional<std::string> getAttrib<std::string>(xoj::xml_attrs::Type name, const AttributeMap& attributeMap);
 template <>
-std::string getAttribMandatory<std::string>(const std::string& name, const AttributeMap& attributeMap,
+std::string getAttribMandatory<std::string>(xoj::xml_attrs::Type name, const AttributeMap& attributeMap,
                                             const std::string& defaultValue, bool warn);
 
 // "color" attribute
@@ -79,8 +83,14 @@ std::istream& operator>>(std::istream& stream, LineStyle& style);
 // implementations of template functions
 
 template <typename T>
+<<<<<<< Updated upstream
 auto XmlParserHelper::getAttrib(const std::string& name, const AttributeMap& attributeMap) -> std::optional<T> {
     auto it = attributeMap.find(name);
+=======
+auto XmlParserHelper::getAttrib(xoj::xml_attrs::Type name, const AttributeMap& attributeMap) -> std::optional<T> {
+    auto it = std::find_if(attributeMap.begin(), attributeMap.end(),
+                           [&name](const std::pair<xoj::xml_attrs::Type, std::string>& p) { return p.first == name; });
+>>>>>>> Stashed changes
     if (it != attributeMap.end()) {
         auto stream = serdes_stream<std::istringstream>(it->second);
         T value{};
@@ -101,7 +111,7 @@ auto XmlParserHelper::getAttrib(const std::string& name, const AttributeMap& att
 }
 
 template <typename T>
-auto XmlParserHelper::getAttribMandatory(const std::string& name, const AttributeMap& attributeMap,
+auto XmlParserHelper::getAttribMandatory(xoj::xml_attrs::Type name, const AttributeMap& attributeMap,
                                          const T& defaultValue, bool warn) -> T {
     auto optionalInt = getAttrib<T>(name, attributeMap);
     if (optionalInt) {
