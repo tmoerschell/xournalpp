@@ -66,9 +66,9 @@ private:
     void parsePageTag();
     void parseAudioTag();
     void parseBackgroundTag();
-    void parseBgSolid(const XmlParserHelper::AttributeMap& attributeMap);
-    void parseBgPixmap(const XmlParserHelper::AttributeMap& attributeMap);
-    void parseBgPdf(const XmlParserHelper::AttributeMap& attributeMap);
+    void parseBgSolid();
+    void parseBgPixmap();
+    void parseBgPdf();
     void parseLayerTag();
     void parseTimestampTag();
     void parseStrokeTag();
@@ -81,11 +81,6 @@ private:
     void parseTexImageText();
     void parseAttachment();
 
-
-    /**
-     * Get an attribute map for the current tag
-     */
-    XmlParserHelper::AttributeMap getAttributeMap();
 
     /**
      * Add the current node's tag to the hierarchy stack and return it
@@ -106,7 +101,7 @@ private:
 
 #ifdef DEBUG_XML_PARSER
     void debugPrintNode();
-    void debugPrintAttributes(const XmlParserHelper::AttributeMap& attributes);
+    void debugPrintAttributes();
 #endif
 
 

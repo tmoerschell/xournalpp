@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <exception>
 #include <ios>
 #include <istream>
@@ -20,37 +21,42 @@
 // template specializations
 
 template <>
-auto XmlParserHelper::getAttrib<std::string>(const std::string& name,
-                                             const AttributeMap& attributeMap) -> std::optional<std::string> {
-    auto it = attributeMap.find(name);
-    if (it != attributeMap.end()) {
-        return it->second;
-    } else {
-        return {};
+auto XmlParserHelper::getAttrib<std::string>(const char* name,
+                                             xmlTextReaderPtr reader) -> std::optional<std::string> {
+    if (xmlTextReaderMoveToFirstAttribute(reader) == 1) {
+        do {
+            const auto attrName = reinterpret_cast<const char*>(xmlTextReaderConstName(reader));
+            if (!strcmp(name, attrName)) {
+                return reinterpret_cast<const char*>(xmlTextReaderConstValue(reader));
+            }
+        } while (xmlTextReaderMoveToNextAttribute(reader));
     }
+    return {};
 }
 
 template <>
-auto XmlParserHelper::getAttribMandatory<std::string>(const std::string& name, const AttributeMap& attributeMap,
+auto XmlParserHelper::getAttribMandatory<std::string>(const char* name, xmlTextReaderPtr reader,
                                                       const std::string& defaultValue, bool warn) -> std::string {
-    auto it = attributeMap.find(name);
-    if (it != attributeMap.end()) {
-        return it->second;
-    } else {
-        if (warn) {
-            g_warning("XML parser: Mandatory attribute \"%s\" not found. Using default value \"%s\"", name.c_str(),
-                      defaultValue.c_str());
-        }
-        return defaultValue;
+    if (xmlTextReaderMoveToFirstAttribute(reader) == 1) {
+        do {
+            const auto attrName = reinterpret_cast<const char*>(xmlTextReaderConstName(reader));
+            if (!strcmp(name, attrName)) {
+                return reinterpret_cast<const char*>(xmlTextReaderConstValue(reader));
+            }
+        } while (xmlTextReaderMoveToNextAttribute(reader));
     }
+    if (warn) {
+        g_warning("XML parser: Mandatory attribute \"%s\" not found. Using default value \"%s\"", name,
+                  defaultValue.c_str());
+    }
+    return defaultValue;
 }
 
 
 // custom attribute parsing functions
 
-auto XmlParserHelper::getAttribColorMandatory(const AttributeMap& attributeMap, const Color& defaultValue,
-                                              bool bg) -> Color {
-    const auto optColorStr = getAttrib<std::string>(xoj::xml_attrs::COLOR_STR, attributeMap);
+auto XmlParserHelper::getAttribColorMandatory(xmlTextReaderPtr reader, const Color& defaultValue, bool bg) -> Color {
+    const auto optColorStr = getAttrib<std::string>(xoj::xml_attrs::COLOR_STR, reader);
 
     if (optColorStr) {
         std::optional<Color> optColor;

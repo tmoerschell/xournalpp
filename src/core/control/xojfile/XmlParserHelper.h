@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <cstring>
 #include <istream>
 #include <optional>
 #include <ostream>
@@ -19,6 +20,7 @@
 #include <unordered_map>
 
 #include <glib.h>
+#include <libxml/xmlreader.h>
 
 #include "util/Color.h"
 #include "util/EnumIndexedArray.h"
@@ -31,23 +33,20 @@ class XmlParser;
 
 namespace XmlParserHelper {
 
-using AttributeMap = std::unordered_map<std::string, std::string>;
-
 // generic templates
 template <typename T>
-std::optional<T> getAttrib(const std::string& name, const AttributeMap& attributeMap);
+std::optional<T> getAttrib(const char* name, xmlTextReaderPtr reader);
 template <typename T>
-T getAttribMandatory(const std::string& name, const AttributeMap& attributeMap, const T& defaultValue = {},
-                     bool warn = true);
+T getAttribMandatory(const char* name, xmlTextReaderPtr reader, const T& defaultValue = {}, bool warn = true);
 // specializations
 template <>
-std::optional<std::string> getAttrib<std::string>(const std::string& name, const AttributeMap& attributeMap);
+std::optional<std::string> getAttrib<std::string>(const char* name, xmlTextReaderPtr reader);
 template <>
-std::string getAttribMandatory<std::string>(const std::string& name, const AttributeMap& attributeMap,
+std::string getAttribMandatory<std::string>(const char* name, xmlTextReaderPtr reader,
                                             const std::string& defaultValue, bool warn);
 
 // "color" attribute
-Color getAttribColorMandatory(const AttributeMap& attributeMap, const Color& defaultValue, bool bg = false);
+Color getAttribColorMandatory(xmlTextReaderPtr reader, const Color& defaultValue, bool bg = false);
 // Attempt to match string with background-specific color "translations"
 std::optional<Color> parseBgColor(const std::string& str);
 // Parse str as a RGBA hex color code
@@ -79,38 +78,43 @@ std::istream& operator>>(std::istream& stream, LineStyle& style);
 // implementations of template functions
 
 template <typename T>
-auto XmlParserHelper::getAttrib(const std::string& name, const AttributeMap& attributeMap) -> std::optional<T> {
-    auto it = attributeMap.find(name);
-    if (it != attributeMap.end()) {
-        auto stream = serdes_stream<std::istringstream>(it->second);
-        T value{};
-        stream >> value;
-        if (!stream.fail()) {
-            if (!stream.eof()) {
-                g_warning("XML parser: Attribute \"%s\" was not entirely parsed", name.c_str());
+auto XmlParserHelper::getAttrib(const char* name, xmlTextReaderPtr reader) -> std::optional<T> {
+    if (xmlTextReaderMoveToFirstAttribute(reader) == 1) {
+        do {
+            const auto attrName = reinterpret_cast<const char*>(xmlTextReaderConstName(reader));
+            if (!strcmp(name, attrName)) {
+                const auto value_str = reinterpret_cast<const char*>(xmlTextReaderConstValue(reader));
+                auto stream = serdes_stream<std::istringstream>(value_str);
+                T value{};
+                stream >> value;
+                if (!stream.fail()) {
+                    if (!stream.eof()) {
+                        g_warning("XML parser: Attribute \"%s\" was not entirely parsed", name);
+                    }
+                    return value;
+                } else {
+                    g_warning("XML parser: Attribute \"%s\" could not be parsed as %s, the value is \"%s\"",
+                              name, Util::demangledTypeName(value).c_str(), value_str);
+                    return {};
+                }
             }
-            return value;
-        } else {
-            g_warning("XML parser: Attribute \"%s\" could not be parsed as %s, the value is \"%s\"", name.c_str(),
-                      Util::demangledTypeName(value).c_str(), it->second.c_str());
-            return {};
-        }
-    } else {
-        return {};
+        } while (xmlTextReaderMoveToNextAttribute(reader));
     }
+
+    return {};
 }
 
 template <typename T>
-auto XmlParserHelper::getAttribMandatory(const std::string& name, const AttributeMap& attributeMap,
-                                         const T& defaultValue, bool warn) -> T {
-    auto optionalInt = getAttrib<T>(name, attributeMap);
+auto XmlParserHelper::getAttribMandatory(const char* name, xmlTextReaderPtr reader, const T& defaultValue,
+                                         bool warn) -> T {
+    auto optionalInt = getAttrib<T>(name, reader);
     if (optionalInt) {
         return *optionalInt;
     } else {
         if (warn) {
             auto stream = serdes_stream<std::ostringstream>();
             stream << defaultValue;
-            g_warning("XML parser: Mandatory attribute \"%s\" not found. Using default value \"%s\"", name.c_str(),
+            g_warning("XML parser: Mandatory attribute \"%s\" not found. Using default value \"%s\"", name,
                       stream.str().c_str());
         }
         return defaultValue;
