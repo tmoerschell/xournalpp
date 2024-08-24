@@ -179,7 +179,7 @@ std::string_view Reader::parseWhile(bool (*func)(char), bool ignoreCR) {
 }
 
 std::string_view Reader::parseUntilFrom(std::vector<char>::iterator& start, char terminator, bool ignoreCR) {
-    return parseWhileFrom(start, [terminator](char c) { return c != terminator; });
+    return parseWhileFrom(start, [terminator](char c) { return c != terminator; }, ignoreCR);
 }
 
 std::string_view Reader::parseUntil(char terminator, bool ignoreCR) {

@@ -179,7 +179,7 @@ private:
      * @param start An iterator to the start of the string
      * @param func A function that decides whether to continue parsing or not
      *             based on the current character.
-     * @param ignoreCR A toggle for ignoring character references, (e.x., inside
+     * @param ignoreCR A toggle for ignoring character references, (e.g., inside
      *                 comments)
      * @returns A string view of the whole parsed data.
      */
@@ -191,7 +191,7 @@ private:
      *
      * @param func A function that decides whether to continue parsing or not
      *             based on the current character.
-     * @param ignoreCR A toggle for ignoring character references, (e.x., inside
+     * @param ignoreCR A toggle for ignoring character references, (e.g., inside
      *                 comments)
      * @returns A string view of the whole parsed data.
      */
@@ -201,7 +201,7 @@ private:
      *
      * @param start An iterator to the start of the string.
      * @param terminator Character that stops parsing.
-     * @param ignoreCR A toggle for ignoring character references, (e.x., inside
+     * @param ignoreCR A toggle for ignoring character references, (e.g., inside
      *                 comments)
      * @returns A string view of the whole parsed data.
      */
@@ -210,7 +210,7 @@ private:
      * Parses data from the current positition until `terminator` is reached.
      *
      * @param terminator Character that stops parsing.
-     * @param ignoreCR A toggle for ignoring character references, (e.x., inside
+     * @param ignoreCR A toggle for ignoring character references, (e.g., inside
      *                 comments)
      * @returns A string view of the whole parsed data.
      */

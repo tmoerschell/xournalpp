@@ -1,7 +1,9 @@
 #include "control/xojfile/XmlParserHelper.h"
 
 #include <array>
+#include <charconv>
 #include <cstdint>
+#include <cstring>
 #include <exception>
 #include <ios>
 #include <istream>
@@ -20,9 +22,10 @@
 // template specializations
 
 template <>
-auto XmlParserHelper::getAttrib<std::string>(const std::string& name,
-                                             const AttributeMap& attributeMap) -> std::optional<std::string> {
-    auto it = attributeMap.find(name);
+auto XmlParserHelper::getAttrib<std::string_view>(std::string_view name,
+                                                  const AttributeMap& attributeMap) -> std::optional<std::string_view> {
+    auto it = std::find_if(attributeMap.begin(), attributeMap.end(),
+                           [&name](const std::pair<std::string_view, std::string_view>& p) { return p.first == name; });
     if (it != attributeMap.end()) {
         return it->second;
     } else {
@@ -31,15 +34,17 @@ auto XmlParserHelper::getAttrib<std::string>(const std::string& name,
 }
 
 template <>
-auto XmlParserHelper::getAttribMandatory<std::string>(const std::string& name, const AttributeMap& attributeMap,
-                                                      const std::string& defaultValue, bool warn) -> std::string {
-    auto it = attributeMap.find(name);
+auto XmlParserHelper::getAttribMandatory<std::string_view>(std::string_view name, const AttributeMap& attributeMap,
+                                                           const std::string_view& defaultValue,
+                                                           bool warn) -> std::string_view {
+    auto it = std::find_if(attributeMap.begin(), attributeMap.end(),
+                           [&name](const std::pair<std::string_view, std::string_view>& p) { return p.first == name; });
     if (it != attributeMap.end()) {
         return it->second;
     } else {
         if (warn) {
-            g_warning("XML parser: Mandatory attribute \"%s\" not found. Using default value \"%s\"", name.c_str(),
-                      defaultValue.c_str());
+            g_warning("XML parser: Mandatory attribute \"%s\" not found. Using default value \"%s\"",
+                      std::string(name).c_str(), std::string(defaultValue).c_str());
         }
         return defaultValue;
     }
@@ -50,7 +55,7 @@ auto XmlParserHelper::getAttribMandatory<std::string>(const std::string& name, c
 
 auto XmlParserHelper::getAttribColorMandatory(const AttributeMap& attributeMap, const Color& defaultValue,
                                               bool bg) -> Color {
-    const auto optColorStr = getAttrib<std::string>(xoj::xml_attrs::COLOR_STR, attributeMap);
+    const auto optColorStr = getAttrib<std::string_view>(xoj::xml_attrs::COLOR_STR, attributeMap);
 
     if (optColorStr) {
         std::optional<Color> optColor;
@@ -70,8 +75,8 @@ auto XmlParserHelper::getAttribColorMandatory(const AttributeMap& attributeMap, 
         }
 
         // Nothing worked: fall back to default value
-        g_warning("XML parser: Unkown color \"%s\" found. Using default value \"%s\"", optColorStr->c_str(),
-                  Util::rgb_to_hex_string(defaultValue).c_str());
+        g_warning("XML parser: Unkown color \"%s\" found. Using default value \"%s\"",
+                  std::string(*optColorStr).c_str(), Util::rgb_to_hex_string(defaultValue).c_str());
         return defaultValue;
     } else {
         g_warning("XML parser: Mandatory attribute \"color\" not found. Using default value \"%s\"",
@@ -91,7 +96,7 @@ constexpr std::array<PredefinedColor, 5> BACKGROUND_COLORS = {{{"blue", Colors::
                                                                {"orange", Colors::xopp_lightsalmon},
                                                                {"yellow", Colors::xopp_khaki}}};
 
-auto XmlParserHelper::parseBgColor(const std::string& str) -> std::optional<Color> {
+auto XmlParserHelper::parseBgColor(std::string_view str) -> std::optional<Color> {
     for (const auto& i: BACKGROUND_COLORS) {
         if (str == i.name) {
             return i.color;
@@ -102,13 +107,13 @@ auto XmlParserHelper::parseBgColor(const std::string& str) -> std::optional<Colo
     return {};
 }
 
-auto XmlParserHelper::parseColorCode(const std::string& str) -> std::optional<Color> {
+auto XmlParserHelper::parseColorCode(std::string_view str) -> std::optional<Color> {
     if ((!str.empty()) && (str[0] == '#')) {
         uint32_t color{};
-        try {
-            color = static_cast<uint32_t>(std::stoul(str.substr(1), nullptr, 16));
-        } catch (const std::exception& e) {
-            g_warning("XML parser: Unknown color code \"%s\".\nMessage: %s", str.c_str(), e.what());
+        auto [ptr, err] = std::from_chars(str.substr(1).data(), str.data() + str.size(), color, 16);
+        if (err != std::errc{}) {
+            g_warning("XML parser: Unknown color code \"%s\".\nMessage: %s", std::string(str).c_str(),
+                      std::make_error_code(err).message().c_str());
             return {};
         }
         // discards alpha for now
@@ -131,14 +136,14 @@ constexpr std::array<PredefinedColor, 11> PREDEFINED_COLORS = {{{"black", Colors
                                                                 {"yellow", Colors::yellow},
                                                                 {"white", Colors::white}}};
 
-auto XmlParserHelper::parsePredefinedColor(const std::string& str) -> std::optional<Color> {
+auto XmlParserHelper::parsePredefinedColor(std::string_view str) -> std::optional<Color> {
     for (const auto& i: PREDEFINED_COLORS) {
         if (str == i.name) {
             return i.color;
         }
     }
 
-    g_warning("XML parser: Color \"%s\" unknown (not defined in default color list)", str.c_str());
+    g_warning("XML parser: Color \"%s\" unknown (not defined in default color list)", std::string(str).c_str());
     return {};
 }
 

@@ -15,6 +15,7 @@
 #include <memory>         // for unique_ptr
 #include <optional>       // for optional
 #include <string>         // for string
+#include <string_view>    // for string_view
 #include <unordered_map>  // for unordered_map
 #include <vector>         // for vector
 
@@ -89,7 +90,7 @@ public:
     void setBgPixmapCloned(size_t pageNr);
     void setBgPdf(size_t pageno);
     void loadBgPdf(bool attach, const fs::path& filename);
-    void addLayer(const std::optional<std::string>& name);
+    void addLayer(const std::optional<std::string_view>& name);
     void finalizeLayer();
     void addStroke(StrokeTool tool, Color color, double width, int fill, StrokeCapStyle capStyle,
                    const std::optional<LineStyle>& lineStyle, fs::path filename, size_t timestamp);
@@ -106,6 +107,8 @@ public:
     void setTexImageData(std::string data);
     void setTexImageAttachment(const fs::path& filename);
     void finalizeTexImage();
+
+    bool isParsingComplete();
 
 private:
     /** Clear any attributes that may have been used before */

@@ -12,6 +12,7 @@
 #include <regex>          // for regex_search, match_results
 #include <stdexcept>      // for runtime_error
 #include <string>         // for string
+#include <string_view>    // for string_view
 #include <unordered_map>  // for unordered_map
 #include <utility>        // for move, forward, exchange
 #include <vector>         // for vector
@@ -25,6 +26,7 @@
 #include "control/xojfile/GzInputStream.h"   // for GzInputStream
 #include "control/xojfile/XmlParser.h"       // for XmlParser
 #include "control/xojfile/ZipInputStream.h"  // for ZipInputStream
+#include "control/xojfile/oxml.h"            // fir Reader, Node
 #include "model/BackgroundImage.h"           // for BackgroundImage
 #include "model/Document.h"                  // for Document
 #include "model/Font.h"                      // for XojFont
@@ -46,6 +48,7 @@
 #include "util/raii/GObjectSPtr.h"           // for GObjectSPtr
 
 #include "filesystem.h"  // for path, is_regular_file
+using namespace std::placeholders;
 
 
 namespace {
@@ -310,12 +313,12 @@ void LoadHandler::loadBgPdf(bool attach, const fs::path& filename) {
     this->pdfFilenameParsed = true;
 }
 
-void LoadHandler::addLayer(const std::optional<std::string>& name) {
+void LoadHandler::addLayer(const std::optional<std::string_view>& name) {
     xoj_assert(!this->layer);
     this->layer = std::make_unique<Layer>();
 
     if (name) {
-        this->layer->setName(*name);
+        this->layer->setName(std::string(*name));
     }
 }
 
@@ -466,6 +469,8 @@ void LoadHandler::setTexImageAttachment(const fs::path& filename) {
     }
 }
 
+auto LoadHandler::isParsingComplete() -> bool { return this->parsingComplete; }
+
 
 std::unique_ptr<InputStream> LoadHandler::openFile(fs::path const& filepath) {
     this->xournalFilepath = filepath;
@@ -530,11 +535,8 @@ void LoadHandler::parseXml(std::unique_ptr<InputStream> xmlContentStream) {
     xoj_assert(xmlContentStream);
 
     XmlParser parser(*xmlContentStream, this);
-    auto res = parser.parse();
+    parser.parse();
 
-    if (res != 0) {
-        logError("File is not finished after end of document");
-    }
     if (!this->parsingComplete) {
         throw std::runtime_error(_("Document is not complete (maybe the end is cut off?)"));
     }

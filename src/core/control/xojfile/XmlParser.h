@@ -22,6 +22,7 @@
 #include "control/xojfile/InputStream.h"
 #include "control/xojfile/XmlParserHelper.h"
 #include "control/xojfile/XmlTags.h"
+#include "control/xojfile/oxml.h"
 
 #include "config-debug.h"
 #include "filesystem.h"
@@ -52,45 +53,42 @@ public:
      *
      * @return The result of the last read operation.
      */
-    int parse(const std::function<int(XmlParser*)>& processNodeFunction = &XmlParser::processRootNode);
+    std::unique_ptr<oxml::Node> parse(
+            const std::function<std::unique_ptr<oxml::Node>(XmlParser*, std::unique_ptr<oxml::Node> bnode)>&
+                    processNodeFunction = &XmlParser::processRootNode);
 
 private:
-    int processRootNode();
-    int processDocumentChildNode();
-    int processPageChildNode();
-    int processLayerChildNode();
-    int processAttachment();
+    std::unique_ptr<oxml::Node> processRootNode(std::unique_ptr<oxml::Node> bnode);
+    std::unique_ptr<oxml::Node> processDocumentChildNode(std::unique_ptr<oxml::Node> bnode);
+    std::unique_ptr<oxml::Node> processPageChildNode(std::unique_ptr<oxml::Node> bnode);
+    std::unique_ptr<oxml::Node> processLayerChildNode(std::unique_ptr<oxml::Node> bnode);
+    std::unique_ptr<oxml::Node> processAttachment(std::unique_ptr<oxml::Node> bnode);
 
-    void parseXournalTag();
-    void parseMrWriterTag();
-    void parsePageTag();
-    void parseAudioTag();
-    void parseBackgroundTag();
-    void parseBgSolid(const XmlParserHelper::AttributeMap& attributeMap);
-    void parseBgPixmap(const XmlParserHelper::AttributeMap& attributeMap);
-    void parseBgPdf(const XmlParserHelper::AttributeMap& attributeMap);
-    void parseLayerTag();
-    void parseTimestampTag();
-    void parseStrokeTag();
-    void parseStrokeText();
-    void parseTextTag();
-    void parseTextText();
-    void parseImageTag();
-    void parseImageText();
-    void parseTexImageTag();
-    void parseTexImageText();
-    void parseAttachment();
+    void parseXournalTag(const XmlParserHelper::AttributeMap& attributes);
+    void parseMrWriterTag(const XmlParserHelper::AttributeMap& attributes);
+    void parsePageTag(const XmlParserHelper::AttributeMap& attributes);
+    void parseAudioTag(const XmlParserHelper::AttributeMap& attributes);
+    void parseBackgroundTag(const XmlParserHelper::AttributeMap& attributes);
+    void parseBgSolid(const XmlParserHelper::AttributeMap& attributes);
+    void parseBgPixmap(const XmlParserHelper::AttributeMap& attributes);
+    void parseBgPdf(const XmlParserHelper::AttributeMap& attributes);
+    void parseLayerTag(const XmlParserHelper::AttributeMap& attributes);
+    void parseTimestampTag(const XmlParserHelper::AttributeMap& attributes);
+    void parseStrokeTag(const XmlParserHelper::AttributeMap& attributes);
+    void parseStrokeText(std::string_view text);
+    void parseTextTag(const XmlParserHelper::AttributeMap& attributes);
+    void parseTextText(std::string_view text);
+    void parseImageTag(const XmlParserHelper::AttributeMap& attributes);
+    void parseImageText(std::string_view text);
+    void parseTexImageTag(const XmlParserHelper::AttributeMap& attributes);
+    void parseTexImageText(std::string_view text);
+    void parseAttachmentTag(const XmlParserHelper::AttributeMap& attributes);
 
-
-    /**
-     * Get an attribute map for the current tag
-     */
-    XmlParserHelper::AttributeMap getAttributeMap();
 
     /**
      * Add the current node's tag to the hierarchy stack and return it
      */
-    xoj::xml_tags::Type openTag();
+    std::pair<std::unique_ptr<oxml::OpeningNode>, xoj::xml_tags::Type> openTag(std::unique_ptr<oxml::Node> bnode);
     /**
      * Remove the specified tag from the hierarchy stack. This function also
      * checks the document integrity together with `openTag()`: each opening
@@ -98,15 +96,13 @@ private:
      * @exception Throws a `std::runtime_error` if the document structure is not
      *            sound.
      */
-    void closeTag(xoj::xml_tags::Type type);
+    void closeTag(std::unique_ptr<oxml::Node> bnode);
 
     xoj::xml_tags::Type tagNameToType(std::string_view name) const;
-    const char* currentName();
-    xoj::xml_tags::Type currentTagType();
 
 #ifdef DEBUG_XML_PARSER
-    void debugPrintNode();
-    void debugPrintAttributes(const XmlParserHelper::AttributeMap& attributes);
+    void debugPrintNode(oxml::Node* bnode);
+    void debugPrintAttributes();
 #endif
 
 
@@ -116,7 +112,7 @@ private:
     using xmlTextReaderWrapper = std::unique_ptr<xmlTextReader, textReaderDeleter>;
 
 
-    xmlTextReaderWrapper reader;
+    oxml::Reader reader;
     LoadHandler* handler;
 
     std::stack<xoj::xml_tags::Type> hierarchy;
