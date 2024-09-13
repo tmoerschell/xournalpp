@@ -2,6 +2,8 @@
 
 #include <gtk/gtk.h>  // for gtk_widget_queue_draw
 
+#include "control/Control.h"            // for Control
+#include "gui/PresentationWindow.h"     // for PresentationWindow
 #include "gui/widgets/XournalWidget.h"  // for gtk_xournal_repaint_area
 
 #include "PageView.h"     // for XojPageView
@@ -18,12 +20,24 @@ void RepaintHandler::repaintPage(const XojPageView* view) {
     int y2 = y1 + view->getDisplayHeight();
 
     gtk_xournal_repaint_area(this->xournal->getWidget(), x1, y1, x2, y2);
+
+    // Always repaint the whole widget: it only displays one page anyways
+    Control* control = this->xournal->getControl();
+    if (control->hasPresentationWindow()) {
+        control->getPresentationWindow().repaintWidget();
+    }
 }
 
 void RepaintHandler::repaintPageArea(const XojPageView* view, int x1, int y1, int x2, int y2) {
     int x = view->getX();
     int y = view->getY();
     gtk_xournal_repaint_area(this->xournal->getWidget(), x + x1, y + y1, x + x2, y + y2);
+
+    // Always repaint the whole widget: it only displays one page anyways
+    Control* control = this->xournal->getControl();
+    if (control->hasPresentationWindow()) {
+        control->getPresentationWindow().repaintWidget();
+    }
 }
 
 void RepaintHandler::repaintPageBorder(const XojPageView* view) { gtk_widget_queue_draw(this->xournal->getWidget()); }

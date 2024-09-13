@@ -22,6 +22,7 @@
 #include "control/zoom/ZoomControl.h"            // for ZoomControl
 #include "gui/MainWindow.h"                      // for MainWindow
 #include "gui/PdfFloatingToolbox.h"              // for PdfFloatingToolbox
+#include "gui/PresentationWindow.h"              // for PresentationWindow
 #include "gui/inputdevices/GeometryToolInputHandler.h"  // for GeometryToolInputHandler
 #include "gui/inputdevices/HandRecognition.h"    // for HandRecognition
 #include "gui/inputdevices/InputContext.h"       // for InputContext
@@ -722,6 +723,9 @@ void XournalView::setSelection(EditSelection* selection) {
 void XournalView::repaintSelection(bool evenWithoutSelection) {
     if (evenWithoutSelection) {
         gtk_widget_queue_draw(this->widget);
+        if (this->control->hasPresentationWindow()) {
+            this->control->getPresentationWindow().repaintWidget();
+        }
         return;
     }
 
@@ -732,6 +736,9 @@ void XournalView::repaintSelection(bool evenWithoutSelection) {
 
     // repaint always the whole widget
     gtk_widget_queue_draw(this->widget);
+    if (this->control->hasPresentationWindow()) {
+        this->control->getPresentationWindow().repaintWidget();
+    }
 }
 
 void XournalView::layoutPages() {
