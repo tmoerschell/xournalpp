@@ -46,6 +46,7 @@
 #include "gui/FloatingToolbox.h"                    // for FloatingToolbox
 #include "gui/MainWindow.h"                         // for MainWindow
 #include "gui/PdfFloatingToolbox.h"                 // for PdfFloatingToolbox
+#include "gui/PresentationWindow.h"                 // for PresentationWindow
 #include "gui/SearchBar.h"                          // for SearchBar
 #include "gui/inputdevices/PositionInputData.h"     // for PositionInputData
 #include "model/Document.h"                         // for Document
@@ -124,6 +125,7 @@ void XojPageView::setIsVisible(bool visible) { this->visible = visible; }
 void XojPageView::deleteViewBuffer() {
     std::lock_guard lock(this->drawingMutex);
     this->buffer.reset();
+    this->presentationBuffer.reset();
 }
 
 auto XojPageView::containsPoint(int x, int y, bool local) const -> bool {
@@ -810,7 +812,12 @@ void XojPageView::drawAndDeleteToolView(xoj::view::ToolView* v, const Range& rg)
         v->isViewOf(this->textEditor.get())) {
         // Draw the inputHandler's view onto the page buffer.
         std::lock_guard lock(this->drawingMutex);
-        if (auto cr = buffer.get(); cr) {
+        auto cr = buffer.get();
+        auto pcr = presentationBuffer.get();
+        if (cr && pcr) {
+            v->drawWithoutDrawingAids(cr);
+            v->drawWithoutDrawingAids(pcr);
+        } else if (cr && !this->xournal->getControl()->hasPresentationWindow()) {
             v->drawWithoutDrawingAids(cr);
         } else {
             rerenderPage();
@@ -1057,6 +1064,38 @@ auto XojPageView::paintPage(cairo_t* cr, GdkRectangle* rect) -> bool {
     }
 
     return true;
+}
+
+auto XojPageView::paintPresentationPage(cairo_t* cr) -> bool {
+    xoj_assert(this->xournal->getControl()->hasPresentationWindow());
+    auto& window = this->xournal->getControl()->getPresentationWindow();
+
+    // We need to zoom, as Mask::paintTo applies the inverse scaling
+    const double zoom = window.getOptimalZoom(this);
+    xoj::util::CairoSaveGuard saveGuard(cr);
+    cairo_scale(cr, zoom, zoom);
+
+    {
+        std::lock_guard lock(this->drawingMutex);  // Lock the mutex first
+        xoj::util::CairoSaveGuard saveGuard(cr);   // see comment at the end of the scope
+        if (!this->presentationBuffer.isInitialized()) {
+            drawLoadingPage(cr);  // todo: fix size here
+            return true;
+        }
+        if (this->presentationBuffer.getZoom() != zoom) {
+            rerenderPage();
+            cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_FAST);
+        }
+        this->presentationBuffer.paintTo(cr);
+    }  // Restore the state of cr and then release the mutex
+       // restoring the state of cr ensures this->buffer.surface is not longer referenced as the source in cr.
+
+
+    for (const auto& v: this->overlayViews) {
+        v->draw(cr);
+    }
+
+    return false;
 }
 
 /**

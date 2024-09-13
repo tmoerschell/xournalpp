@@ -377,7 +377,8 @@ auto Layout::getPaddingLeftOfPage(size_t pageIndex) const -> int {
 void Layout::setLayoutSize(int width, int height) { this->scrollHandling->setLayoutSize(width, height); }
 
 void Layout::scrollRelative(double x, double y) {
-    if (this->view->getControl()->getSettings()->isPresentationMode()) {
+    auto* control = this->view->getControl();
+    if (control->getSettings()->isPresentationMode() && !control->hasPresentationWindow()) {
         return;
     }
 
@@ -388,7 +389,8 @@ void Layout::scrollRelative(double x, double y) {
 }
 
 void Layout::scrollAbs(double x, double y) {
-    if (this->view->getControl()->getSettings()->isPresentationMode()) {
+    auto* control = this->view->getControl();
+    if (control->getSettings()->isPresentationMode() && !control->hasPresentationWindow()) {
         return;
     }
 
