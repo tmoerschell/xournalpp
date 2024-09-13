@@ -11,6 +11,7 @@
 #include "control/ToolHandler.h"        // for ToolHandler
 #include "control/jobs/Job.h"           // for JOB_TYPE_RENDER, JobType
 #include "gui/PageView.h"               // for XojPageView
+#include "gui/PresentationWindow.h"     // for PresentationWindow
 #include "gui/XournalView.h"            // for XournalView
 #include "gui/widgets/XournalWidget.h"  // for gtk_xournal_repaint_area
 #include "model/Document.h"             // for Document
@@ -51,6 +52,16 @@ void RenderJob::rerenderRectangle(Rectangle<double> const& rect) {
 
     renderToBuffer(newMask.get());
 
+    if (view->xournal->getControl()->hasPresentationWindow()) {
+        const auto zoom = view->xournal->getControl()->getPresentationWindow().getOptimalZoom(view);
+        xoj::view::Mask presentationMask(view->xournal->getDpiScaleFactor(), maskRange, zoom,
+                                         CAIRO_CONTENT_COLOR_ALPHA);
+        renderToBuffer(presentationMask.get());
+        if (this->view->presentationBuffer.isInitialized()) {
+            presentationMask.paintTo(this->view->presentationBuffer.get());
+        }
+    }
+
     std::lock_guard lock(this->view->drawingMutex);
     if (!view->buffer.isInitialized()) {
         // Todo: the buffer must not be uninitializable here, either by moving it into the job or by locking it at job
@@ -83,6 +94,17 @@ void RenderJob::run() {
             // We do not have any control on what portion of the widget needs to be redrawn. Redraw it all.
             Util::execInUiThread([w = view->xournal->getWidget()]() { gtk_widget_queue_draw(w); });
         } else {
+            if (view->xournal->getControl()->hasPresentationWindow()) {
+                const auto zoom = view->xournal->getControl()->getPresentationWindow().getOptimalZoom(view);
+                xoj::view::Mask presentationMask(view->xournal->getDpiScaleFactor(),
+                                                 Range(0, 0, view->page->getWidth(), view->page->getHeight()), zoom,
+                                                 CAIRO_CONTENT_COLOR_ALPHA);
+                renderToBuffer(presentationMask.get());
+                {
+                    std::lock_guard lock(this->view->drawingMutex);
+                    std::swap(this->view->presentationBuffer, presentationMask);
+                }
+            }
             repaintPage();
         }
     } else {
@@ -105,6 +127,13 @@ void RenderJob::repaintPageArea(double x1, double y1, double x2, double y2) cons
     int y = view->getY();
     repaintWidgetArea(view->xournal->getWidget(), x + floor_cast<int>(zoom * x1), y + floor_cast<int>(zoom * y1),
                       x + ceil_cast<int>(zoom * x2), y + ceil_cast<int>(zoom * y2));
+
+    // Repaint the external presentation screen if it exists
+    // todo: this should actually have a separate rendering queue, but for now this is the easiest solution
+    auto* control = view->xournal->getControl();
+    if (control->hasPresentationWindow()) {
+        control->getPresentationWindow().repaintWidget();
+    }
 }
 
 void RenderJob::renderToBuffer(cairo_t* cr) const {

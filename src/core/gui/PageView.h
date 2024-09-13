@@ -195,6 +195,7 @@ public:  // event handler
      * a rerender call if necessary
      */
     bool paintPage(cairo_t* cr, GdkRectangle* rect);
+    bool paintPresentationPage(cairo_t* cr);
 
 public:  // listener
     void rectChanged(xoj::util::Rectangle<double>& rect) override;
@@ -278,7 +279,15 @@ private:
     bool selected = false;
 
     xoj::view::Mask buffer;
+    xoj::view::Mask presentationBuffer;
     std::mutex drawingMutex;
+
+    /*
+    Todo: add an optional presentation buffer and methods for painting it
+    Rendering methods should be adjusted to also render the presentation
+    buffer when it exists, at the correct zoom level. Overlays should be scaled
+    from the original view for now. 
+    */
 
     bool inEraser = false;
 
