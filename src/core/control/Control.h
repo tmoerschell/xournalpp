@@ -72,6 +72,7 @@ class XojPdfRectangle;
 class Callback;
 class ActionDatabase;
 class NavigationHistory;
+class PresentationWindow;
 
 class Control:
         public ToolListener,
@@ -217,6 +218,11 @@ public:
     bool loadViewMode(ViewModeId mode);
 
     /**
+     * Returns whether an external presentation screen exists, i.e. getPresentationWindow will not fail
+     */
+    bool hasPresentationWindow() const;
+
+    /**
      * @brief Search text on the given page. The matches (if any) are stored in the XojPageView::SearchControl instance.
      * @param occurrences If not nullptr, the pointed variable will contain the number of matches on the page
      * @param matchRect If not nullptr, will contain the topleft point of the first match on the page
@@ -327,6 +333,7 @@ public:
     LayerController* getLayerController() const;
     PluginController* getPluginController() const;
     const Palette& getPalette() const;
+    PresentationWindow& getPresentationWindow() const;
 
     /**
      * Show floating toolbox at specified coordinates
@@ -493,6 +500,7 @@ private:
     Settings* settings = nullptr;
     std::unique_ptr<Palette> palette;
     MainWindow* win = nullptr;
+    std::unique_ptr<PresentationWindow> presentationWindow;
 
     Document* doc = nullptr;
 

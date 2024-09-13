@@ -424,7 +424,8 @@ void Layout::scrollRelative(double x, double y) {
 }
 
 void Layout::scrollAbs(double x, double y) {
-    if (this->view->getControl()->getSettings()->isPresentationMode()) {
+    auto* control = this->view->getControl();
+    if (control->getSettings()->isPresentationMode() && !control->hasPresentationWindow()) {
         return;
     }
 
