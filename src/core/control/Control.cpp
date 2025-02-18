@@ -42,6 +42,7 @@
 #include "gui/MainWindow.h"                                      // for Main...
 #include "gui/PageView.h"                                        // for XojP...
 #include "gui/PdfFloatingToolbox.h"                              // for PdfF...
+#include "gui/PresentationWindow.h"                              // for Pres...
 #include "gui/SearchBar.h"                                       // for Sear...
 #include "gui/XournalView.h"                                     // for Xour...
 #include "gui/XournalppCursor.h"                                 // for Xour...
@@ -1003,14 +1004,27 @@ void Control::setViewFullscreenMode(bool enabled) {
 
 void Control::setViewPresentationMode(bool enabled) {
     if (enabled) {
-        this->loadViewMode(VIEW_MODE_PRESENTATION);
+        GdkDisplay* display = gdk_display_get_default();
+        int monitorCount = gdk_display_get_n_monitors(display);
+        if (monitorCount > 1) {
+            try {
+                // constructor may throw
+                this->presentationWindow =
+                        std::make_unique<PresentationWindow>(monitorCount - 1, this->win->getXournal());
+            } catch (const std::exception& e) {
+                g_warning("%s", e.what());
+            }
+        } else {
+            this->loadViewMode(VIEW_MODE_PRESENTATION);
 
-        bool success = zoom->updateZoomPresentationValue();
-        if (!success) {
-            g_warning("Error calculating zoom value");
-            return;
+            bool success = zoom->updateZoomPresentationValue();
+            if (!success) {
+                g_warning("Error calculating zoom value");
+                return;
+            }
         }
     } else {
+        this->presentationWindow.reset();
         this->loadViewMode(VIEW_MODE_DEFAULT);
 
         if (settings->isViewFixedRows()) {
@@ -1023,30 +1037,34 @@ void Control::setViewPresentationMode(bool enabled) {
         setViewLayoutR2L(settings->getViewLayoutR2L());
         setViewLayoutB2T(settings->getViewLayoutB2T());
     }
-    zoom->setZoomPresentationMode(enabled);
+
     settings->setPresentationMode(enabled);
 
-    // Disable Zoom
-    this->actionDB->enableAction(Action::ZOOM_IN, !enabled);
-    this->actionDB->enableAction(Action::ZOOM_OUT, !enabled);
-    this->actionDB->enableAction(Action::ZOOM_FIT, !enabled);
-    this->actionDB->enableAction(Action::ZOOM_100, !enabled);
-    this->actionDB->enableAction(Action::ZOOM, !enabled);
+    if (!(enabled && this->presentationWindow)) {
+        zoom->setZoomPresentationMode(enabled);
 
-    // TODO Figure out how to replace this
-    // fireEnableAction(ACTION_FOOTER_ZOOM_SLIDER, !enabled);
+        // Disable Zoom
+        this->actionDB->enableAction(Action::ZOOM_IN, !enabled);
+        this->actionDB->enableAction(Action::ZOOM_OUT, !enabled);
+        this->actionDB->enableAction(Action::ZOOM_FIT, !enabled);
+        this->actionDB->enableAction(Action::ZOOM_100, !enabled);
+        this->actionDB->enableAction(Action::ZOOM, !enabled);
 
-    this->actionDB->enableAction(Action::SET_LAYOUT_BOTTOM_TO_TOP, !enabled);
-    this->actionDB->enableAction(Action::SET_LAYOUT_RIGHT_TO_LEFT, !enabled);
-    this->actionDB->enableAction(Action::SET_LAYOUT_VERTICAL, !enabled);
-    this->actionDB->enableAction(Action::SET_COLUMNS_OR_ROWS, !enabled);
+        // TODO Figure out how to replace this
+        // fireEnableAction(ACTION_FOOTER_ZOOM_SLIDER, !enabled);
 
-    // disable selection of scroll hand tool
-    // TODO Figure out how to replace this
-    // fireEnableAction(ACTION_TOOL_HAND, !enabled);
+        this->actionDB->enableAction(Action::SET_LAYOUT_BOTTOM_TO_TOP, !enabled);
+        this->actionDB->enableAction(Action::SET_LAYOUT_RIGHT_TO_LEFT, !enabled);
+        this->actionDB->enableAction(Action::SET_LAYOUT_VERTICAL, !enabled);
+        this->actionDB->enableAction(Action::SET_COLUMNS_OR_ROWS, !enabled);
 
-    win->getXournal()->layoutPages();
-    scrollHandler->scrollToPage(getCurrentPageNo());
+        // disable selection of scroll hand tool
+        // TODO Figure out how to replace this
+        // fireEnableAction(ACTION_TOOL_HAND, !enabled);
+
+        win->getXournal()->layoutPages();
+        scrollHandler->scrollToPage(getCurrentPageNo());
+    }
 }
 
 void Control::setPairsOffset(int numOffset) {
@@ -2176,6 +2194,8 @@ auto Control::loadViewMode(ViewModeId mode) -> bool {
     return false;
 }
 
+auto Control::hasPresentationWindow() const -> bool { return static_cast<bool>(this->presentationWindow); }
+
 void Control::clipboardCutCopyEnabled(bool enabled) {
     this->actionDB->enableAction(Action::CUT, enabled);
     this->actionDB->enableAction(Action::COPY, enabled);
@@ -2541,6 +2561,8 @@ auto Control::getLayerController() const -> LayerController* { return this->laye
 auto Control::getPluginController() const -> PluginController* { return this->pluginController; }
 
 auto Control::getPalette() const -> const Palette& { return *(this->palette); }
+
+auto Control::getPresentationWindow() const -> PresentationWindow& { return *(this->presentationWindow); }
 
 auto Control::loadPaletteFromSettings() -> void {
     const auto palettePath = this->settings->getColorPaletteSetting();
