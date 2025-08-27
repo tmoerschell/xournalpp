@@ -256,7 +256,7 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
                 // "absolute" just means path. For backward compatibility, it is hard to change the word
                 background->setAttrib("domain", "absolute");
                 auto normalizedPath = Util::normalizeAssetPath(doc->getPdfFilepath(), target.parent_path(),
-                                                               doc->getPathStorageMode());
+                                                               Util::PathStorageMode::AS_RELATIVE_PATH);
                 background->setAttrib("filename", std::move(normalizedPath));
             }
         }

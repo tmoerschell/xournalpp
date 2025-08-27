@@ -266,6 +266,7 @@ struct XournalMainPrivate {
     gchar* pdfFilename{};
     gchar* imgFilename{};
     gchar* docFilename{};
+    gboolean resave{};
     gboolean showVersion = false;
     int openAtPageNumber = 0;  // when no --page is used, the document opens at the page specified in the metadata file
     gchar* exportRange{};
@@ -521,6 +522,30 @@ auto on_handle_local_options(GApplication*, GVariantDict*, XMPtr app_data) -> gi
     if (app_data->docFilename && app_data->optFilename && *app_data->optFilename) {
         return exec_guarded([&] { return saveDoc(*app_data->optFilename, app_data->docFilename); }, "saveDocument");
     }
+    if (app_data->resave && app_data->optFilename) {
+        return exec_guarded(
+                [&] {
+                    LoadHandler loader;
+                    auto doc = loader.loadDocument(*app_data->optFilename);
+                    if (doc == nullptr) {
+                        g_error("%s", loader.getLastError().c_str());
+                    }
+
+                    exitOnMissingPdfFileName(loader);
+
+                    const fs::path out = fs::absolute(Util::fromGFilename(*app_data->optFilename));
+
+                    SaveHandler saver;
+                    saver.prepareSave(doc.get(), out);
+                    saver.saveTo(out);
+
+                    if (!saver.getErrorMessage().empty()) {
+                        g_error("%s", FC(_F("Error: {1}") % saver.getErrorMessage()));
+                    }
+                    return 0;
+                },
+                "resave");
+    }
     return -1;
 }
 
@@ -588,6 +613,8 @@ auto XournalMain::run(int argc, char** argv) -> int {
                                        nullptr},
                           GOptionEntry{"save", 's', 0, G_OPTION_ARG_FILENAME, &app_data.docFilename,
                                        _("Save xopp-file with the background PDF specified as FILE"), "XOPPFILE"},
+                          GOptionEntry{"resave", 0, 0, G_OPTION_ARG_NONE, &app_data.resave,
+                                       _("Re-save xopp-file with the relative background PDF path"), nullptr},
                           GOptionEntry{nullptr}};  // Must be terminated by a nullptr. See gtk doc
     g_application_add_main_option_entries(G_APPLICATION(app), options.data());
 
