@@ -45,20 +45,24 @@ private:
     Value value = PEN;
 };
 
-std::ostream& operator<<(std::ostream& stream, const StrokeTool tool);
-std::istream& operator>>(std::istream& stream, StrokeTool& tool);
+class StrokeCapStyle {
+public:
+    enum Value {
+        ROUND = 0,
+        BUTT = 1,
+        SQUARE = 2
+    };  // Must match the indices in StrokeView::CAIRO_LINE_CAP
+        // and in EraserHandler::PADDING_COEFFICIENT_CAP
+    static constexpr std::array<const char*, 3> NAMES = {"round", "butt", "square"};
+    StrokeCapStyle(Value v): value(v) {}
 
-enum StrokeCapStyle {
-    ROUND = 0,
-    BUTT = 1,
-    SQUARE = 2
-};  // Must match the indices in StrokeView::CAIRO_LINE_CAP
-    // and in EraserHandler::PADDING_COEFFICIENT_CAP
+    // Implicit conversion to underlying enum type
+    operator const Value&() const { return value; }
+    operator Value&() { return value; }
 
-constexpr std::array<const char*, 3> STROKE_CAP_STYLE_NAMES = {"round", "butt", "square"};
-
-std::ostream& operator<<(std::ostream& stream, const StrokeCapStyle style);
-std::istream& operator>>(std::istream& stream, StrokeCapStyle& style);
+private:
+    Value value;
+};
 
 class ErasableStroke;
 struct PaddedBox;

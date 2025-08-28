@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include <string_view>
+
 #include "util/EnumIndexedArray.h"
 
 namespace xoj::xml_tags {
@@ -36,9 +38,10 @@ enum class Type : size_t {
     ENUMERATOR_COUNT
 };
 
+using namespace std::literals::string_view_literals;
 // Names corresponding to the xoj::xml_tags::Type enum. They must imperatively correspond to the order of the enum!
-constexpr EnumIndexedArray<const char*, Type> NAMES = {"[unknown]", "xournal", "MrWriter",   "title",    "preview",
-                                                       "page",      "audio",   "background", "layer",    "timestamp",
-                                                       "stroke",    "text",    "image",      "teximage", "attachment"};
+constexpr EnumIndexedArray<std::string_view, Type> NAMES = {
+        "[unknown]"sv, "xournal"sv,   "MrWriter"sv, "title"sv, "preview"sv, "page"sv,     "audio"sv,     "background"sv,
+        "layer"sv,     "timestamp"sv, "stroke"sv,   "text"sv,  "image"sv,   "teximage"sv, "attachment"sv};
 
 }  // namespace xoj::xml_tags

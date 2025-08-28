@@ -1,5 +1,6 @@
 #include "control/xojfile/XmlParser.h"
 
+#include <algorithm>      // for all_of
 #include <functional>     // for function
 #include <stdexcept>      // for runtime_error
 #include <string>         // for stod, string
@@ -29,425 +30,177 @@
 #include "util/i18n.h"                         // for FS, _F
 #include "util/safe_casts.h"                   // for as_unsigned
 
-#include "config-debug.h"  // for DEBUG_XML_PARSER
 #include "filesystem.h"    // for path
-
-#ifdef DEBUG_XML_PARSER
-#include <iostream>  // for cout
-
-#define DEBUG_PARSER(f) f
-#else
-#define DEBUG_PARSER(f)
-#endif
 
 
 static constexpr auto& TAG_NAMES = xoj::xml_tags::NAMES;
 using TagType = xoj::xml_tags::Type;
 
-static auto readCallback(void* context, char* buffer, int len) -> int {
-    auto* input = reinterpret_cast<InputStream*>(context);
-    return input->read(buffer, as_unsigned(len));
+
+template <typename T>
+static bool isAllWhitespace(T string) {
+    return std::all_of(string.begin(), string.end(), [](unsigned char ch) { return std::isspace(ch); });
 }
 
-// called by xmlFreeTextReader
-static auto closeCallback(void* context) -> int {
-    auto* input = reinterpret_cast<InputStream*>(context);
-    input->close();
-    return 0;
-}
+void XmlParser::parserStartElement(GMarkupParseContext* context, const gchar* elementName, const gchar** attributeNames,
+                                   const gchar** attributeValues, gpointer userdata, GError** error) {
+    auto self = static_cast<XmlParser*>(userdata);
+    xoj_assert(self);
 
+    const auto tagType = self->getTagType(elementName);
 
-XmlParser::XmlParser(InputStream& input, LoadHandler* handler):
-        reader(xmlReaderForIO(readCallback, closeCallback, &input, nullptr, nullptr,
-                              XML_PARSE_RECOVER | XML_PARSE_NOBLANKS | XML_PARSE_HUGE)),
-        handler(handler),
-        pdfFilenameParsed(false),
-        tempTimestamp(0) {
-    if (!reader) {
-        const xmlError* error = xmlGetLastError();
-        std::string message = FS(_F("Error setting up an XML reader: {1}") % error->message);
-        message += "\n" + FS(_F("Error code {1}") % error->code);
-        xmlResetLastError();
-        throw std::runtime_error(message);
-    }
-}
-
-auto XmlParser::parse(const std::function<int(XmlParser*)>& processNodeFunction) -> int {
-    int res = xmlTextReaderRead(this->reader.get());
-    int startDepth{};
-    if (res == 1) {
-        if (xmlTextReaderNodeType(this->reader.get()) != XML_ELEMENT_NODE) {
-            // The first node isn't an opening node.
-            return res;
+    // Check for unknown tags
+    if (tagType == TagType::UNKNOWN) {
+        if (!self->lastValidTag) {
+            if (!self->hierarchy.empty()) {
+                g_warning("Ignoring unexpected %s tag at document root.", elementName);
+            }
+            // If the hierarchy is empty, we will attempt parsing it anyways
         } else {
-            startDepth = xmlTextReaderDepth(this->reader.get());
+            g_warning("Ignoring unexpected %s tag under " SV_FMT, elementName, SV_ARG(TAG_NAMES[*self->lastValidTag]));
         }
     }
 
-    while (res == 1) {
-        if (xmlTextReaderDepth(this->reader.get()) >= startDepth) {
-            DEBUG_PARSER(debugPrintNode());
-            // The node processing functions always perform a read operation at
-            // the end. Some do because they call parse(), so all must comply.
-            res = processNodeFunction(this);
-        } else {
-            // We reached a node at a lower depth as our start depth.
-            return res;
-        }
+    // Call parsing function
+    if (parsingTable[tagType].start) {
+        const auto attributes = XmlParserHelper::AttributeMap{attributeNames, attributeValues};
+        (self->*parsingTable[tagType].start)(attributes);
     }
 
-    if (res < 0) {
-        const xmlError* error = xmlGetLastError();
-        std::string message = FS(_F("Error parsing XML file: {1}") % error->message);
-        message += FS(_F("Error code {1}, line {2}") % error->code % error->line);
-        xmlResetLastError();
-        throw std::runtime_error(message);
-    }
-
-    return res;
-}
-
-
-auto XmlParser::processRootNode() -> int {
-    // The root tag should not be empty
-    if (xmlTextReaderIsEmptyElement(this->reader.get())) {
-        throw std::runtime_error(_("Error parsing XML file: the document root tag is empty"));
-    }
-
-    const int nodeType = xmlTextReaderNodeType(this->reader.get());
-    switch (nodeType) {
-        case XML_ELEMENT_NODE: {
-            xoj_assert(this->hierarchy.empty());
-
-            const TagType tagType = openTag();
-
-            switch (tagType) {
-                case TagType::XOURNAL:
-                    parseXournalTag();
-                    break;
-                case TagType::MRWRITER:
-                    parseMrWriterTag();
-                    break;
-                default:
-                    // Print a warning, but attempt parsing the document anyway
-                    g_warning("XML parser: Unexpected root tag: \"%s\"", currentName());
-                    break;
-            }
-
-            return parse(&XmlParser::processDocumentChildNode);
-        }
-        case XML_ELEMENT_DECL: {
-            // Parsing is done: we have arrived at the closing node
-            this->handler->finalizeDocument();
-            closeTag(currentTagType());
-            return xmlTextReaderRead(this->reader.get());
-        }
-        default:
-            g_warning("XML parser: Ignoring unexpected node type %d at document root", nodeType);
-            return xmlTextReaderRead(this->reader.get());
+    self->hierarchy.push_back(tagType);
+    if (tagType != TagType::UNKNOWN) {
+        self->lastValidTag = tagType;
     }
 }
 
-auto XmlParser::processDocumentChildNode() -> int {
-    xoj_assert(!this->hierarchy.empty());
+void XmlParser::parserEndElement(GMarkupParseContext* context, const gchar* elementName, gpointer userdata,
+                                 GError** error) {
+    auto self = static_cast<XmlParser*>(userdata);
+    xoj_assert(self);
 
-    const int nodeType = xmlTextReaderNodeType(this->reader.get());
-    switch (nodeType) {
-        case XML_ELEMENT_NODE: {
-            xoj_assert(this->hierarchy.top() == TagType::XOURNAL || this->hierarchy.top() == TagType::MRWRITER ||
-                       this->hierarchy.top() == TagType::UNKNOWN);
+    // GMarkup should have already risen an error if there was an error in the document structure.
+    xoj_assert(!self->hierarchy.empty());
+    const auto tagType = self->hierarchy.back();
+    xoj_assert(TAG_NAMES[tagType] == elementName || tagType == TagType::UNKNOWN);
 
-            const TagType tagType = openTag();
+    // Check for unknown tags
+    if (tagType == TagType::UNKNOWN && self->hierarchy.size() == 1) {
+        // We are closing an unknown top level node. Assume it's the end of the document.
+        self->handler->finalizeDocument();
+    }
 
-            switch (tagType) {
-                case TagType::TITLE:
-                case TagType::PREVIEW:
-                    // Ignore these tags, we don't need them.
-                    break;
-                case TagType::PAGE: {
-                    // When parsing the page, the reader will move to the attributes,
-                    // which are never empty. Check for empty page first.
-                    const bool isEmptyPage = xmlTextReaderIsEmptyElement(this->reader.get());
-                    parsePageTag();
-                    if (isEmptyPage) {
-                        g_warning("XML parser: Found empty page");
-                        this->handler->finalizePage();
-                        break;
-                    }
-                    return parse(&XmlParser::processPageChildNode);
-                }
-                case TagType::AUDIO:
-                    parseAudioTag();
-                    break;
-                default:
-                    g_warning("XML parser: Ignoring unexpected tag in document: \"%s\"", currentName());
-                    break;
-            }
+    // Call parsing function
+    if (parsingTable[tagType].end) {
+        (self->handler->*parsingTable[tagType].end)();
+    }
 
-            return xmlTextReaderRead(this->reader.get());
+    self->hierarchy.pop_back();
+
+    // Track last valid tag
+    self->lastValidTag.reset();  // Default for empty hierarchy or no valid tag found
+    for (auto it = self->hierarchy.rbegin(); it != self->hierarchy.rend(); ++it) {
+        if (*it != TagType::UNKNOWN) {
+            self->lastValidTag = *it;
+            break;
         }
-        case XML_TEXT_NODE: {
-            // ignore text from tags above (title or preview), print a warning otherwise
-            if (this->hierarchy.top() != TagType::TITLE && this->hierarchy.top() != TagType::PREVIEW) {
-                g_warning("XML parser: Ignoring unexpected text under tag \"%s\"", TAG_NAMES[this->hierarchy.top()]);
-            }
-            return xmlTextReaderRead(this->reader.get());
-        }
-        case XML_ELEMENT_DECL: {
-            if (this->hierarchy.top() == TagType::PAGE) {
-                this->handler->finalizePage();
-            }
-            closeTag(currentTagType());
-            return xmlTextReaderRead(this->reader.get());
-        }
-        default:
-            g_warning("XML parser: Ignoring unexpected node type %d in document", nodeType);
-            return xmlTextReaderRead(this->reader.get());
     }
 }
 
-auto XmlParser::processPageChildNode() -> int {
-    xoj_assert(!this->hierarchy.empty());
+void XmlParser::parserText(GMarkupParseContext* context, const gchar* text, gsize textLen, gpointer userdata,
+                           GError** error) {
+    auto self = static_cast<XmlParser*>(userdata);
+    xoj_assert(self);
 
-    const int nodeType = xmlTextReaderNodeType(this->reader.get());
-    switch (nodeType) {
-        case XML_ELEMENT_NODE: {
-            xoj_assert(this->hierarchy.top() == TagType::PAGE || this->hierarchy.top() == TagType::UNKNOWN);
+    const auto textSV = std::string_view{text, textLen};
 
-            const TagType tagType = openTag();
-
-            switch (tagType) {
-                case TagType::BACKGROUND:
-                    parseBackgroundTag();
-                    break;
-                case TagType::LAYER: {
-                    const bool isEmptyLayer = xmlTextReaderIsEmptyElement(this->reader.get());
-                    parseLayerTag();
-                    if (isEmptyLayer) {
-                        // Don't warn: it's normal to have an empty layer in an empty page
-                        this->handler->finalizeLayer();
-                        break;
-                    }
-                    return parse(&XmlParser::processLayerChildNode);
-                }
-                default:
-                    g_warning("XML parser: Ignoring unexpected tag in page: \"%s\"", currentName());
-                    break;
-            }
-            return xmlTextReaderRead(this->reader.get());
+    // Check for text at document root
+    if (self->hierarchy.empty()) {
+        if (!isAllWhitespace(textSV)) {
+            g_warning("Ignoring unexpected text at document root: \"" SV_FMT "\"", SV_ARG(textSV));
         }
-        case XML_ELEMENT_DECL:
-            if (this->hierarchy.top() == TagType::LAYER) {
-                this->handler->finalizeLayer();
-            }
-            closeTag(currentTagType());
-            return xmlTextReaderRead(this->reader.get());
-        default:
-            g_warning("XML parser: Ignoring unexpected node type %d in page", nodeType);
-            return xmlTextReaderRead(this->reader.get());
+        return;
     }
-}
 
-auto XmlParser::processLayerChildNode() -> int {
-    xoj_assert(!this->hierarchy.empty());
+    const auto tagType = self->hierarchy.back();
 
-    const int nodeType = xmlTextReaderNodeType(this->reader.get());
-    switch (nodeType) {
-        case XML_ELEMENT_NODE: {
-            xoj_assert(this->hierarchy.top() == TagType::LAYER || this->hierarchy.top() == TagType::UNKNOWN);
-
-            const TagType tagType = openTag();
-
-            switch (tagType) {
-                case TagType::TIMESTAMP:
-                    parseTimestampTag();
-                    break;
-                case TagType::STROKE: {
-                    const bool isEmptyStroke = xmlTextReaderIsEmptyElement(this->reader.get());
-                    parseStrokeTag();
-                    if (isEmptyStroke) {
-                        g_warning("XML parser: Found empty stroke");
-                        this->handler->finalizeStroke();
-                    }
-                    break;
-                }
-                case TagType::TEXT: {
-                    const bool isEmptyText = xmlTextReaderIsEmptyElement(this->reader.get());
-                    parseTextTag();
-                    if (isEmptyText) {
-                        g_warning("XML parser: Found empty text");
-                        this->handler->finalizeText();
-                    }
-                    break;
-                }
-                case TagType::IMAGE: {
-                    const bool isEmptyImage = xmlTextReaderIsEmptyElement(this->reader.get());
-                    parseImageTag();
-                    if (isEmptyImage) {
-                        g_warning("XML parser: Found empty image");
-                        this->handler->finalizeImage();
-                        break;
-                    }
-                    // An image may have an attachment. If it doesn't, parse()
-                    // will return right away
-                    return parse(&XmlParser::processAttachment);
-                }
-                case TagType::TEXIMAGE: {
-                    const bool isEmptyTexImage = xmlTextReaderIsEmptyElement(this->reader.get());
-                    parseTexImageTag();
-                    if (isEmptyTexImage) {
-                        g_warning("XML parser: Found empty TEX image");
-                        this->handler->finalizeTexImage();
-                    }
-                    // An image may have an attachment. If it doesn't, parse()
-                    // will return right away
-                    return parse(&XmlParser::processAttachment);
-                }
-                default:
-                    g_warning("XML parser: Ignoring unexpected tag in layer: \"%s\"", currentName());
-                    break;
-            }
-            return xmlTextReaderRead(this->reader.get());
-        }
-        case XML_TEXT_NODE: {
-            switch (this->hierarchy.top()) {
-                case TagType::STROKE:
-                    parseStrokeText();
-                    break;
-                case TagType::TEXT:
-                    parseTextText();
-                    break;
-                case TagType::IMAGE:
-                    parseImageText();
-                    break;
-                case TagType::TEXIMAGE:
-                    parseTexImageText();
-                    break;
-                default:
-                    g_warning("XML parser: Ignoring unexpected text under tag \"%s\"",
-                              TAG_NAMES[this->hierarchy.top()]);
-                    break;
-            }
-            return xmlTextReaderRead(this->reader.get());
-        }
-        case XML_ELEMENT_DECL: {
-            switch (this->hierarchy.top()) {
-                case TagType::STROKE:
-                    this->handler->finalizeStroke();
-                    break;
-                case TagType::TEXT:
-                    this->handler->finalizeText();
-                    break;
-                case TagType::IMAGE:
-                    this->handler->finalizeImage();
-                    break;
-                case TagType::TEXIMAGE:
-                    this->handler->finalizeTexImage();
-                    break;
-                default:
-                    break;
-            }
-            closeTag(currentTagType());
-            return xmlTextReaderRead(this->reader.get());
-        }
-        default:
-            g_warning("XML parser: Ignoring unexpected node type %d in layer", nodeType);
-            return xmlTextReaderRead(this->reader.get());
-    }
-}
-
-auto XmlParser::processAttachment() -> int {
-    xoj_assert(!this->hierarchy.empty());
-
-    const int nodeType = xmlTextReaderNodeType(this->reader.get());
-    switch (nodeType) {
-        case XML_ELEMENT_NODE: {
-            xoj_assert(this->hierarchy.top() == TagType::IMAGE || this->hierarchy.top() == TagType::TEXIMAGE ||
-                       this->hierarchy.top() == TagType::UNKNOWN);
-
-            const TagType tagType = openTag();
-
-            switch (tagType) {
-                case TagType::ATTACHMENT:
-                    parseAttachment();
-                    break;
-                default:
-                    g_warning("XML parser: Ignoring unexpected tag in image or TEX image: \"%s\"", currentName());
-                    break;
-            }
-            return xmlTextReaderRead(this->reader.get());
-        }
-        case XML_ELEMENT_DECL:
-            closeTag(currentTagType());
-            return xmlTextReaderRead(this->reader.get());
-        default:
-            g_warning("XML parser: Ignoring unexpected node type %d in image or TEX image", nodeType);
-            return xmlTextReaderRead(this->reader.get());
+    if (self->parsingTable[tagType].text) {
+        // Text may come in separated chunks only if it contains comments or other
+        // special instances starting with '<', which we do not expect. This means
+        // we always get the whole text in a single callback.
+        (self->*parsingTable[tagType].text)(textSV);
+    } else if (tagType != TagType::TITLE && tagType != TagType::PREVIEW && !isAllWhitespace(textSV)) {
+        g_warning("Unexpected text in " SV_FMT " node: \"" SV_FMT "\"", SV_ARG(TAG_NAMES[tagType]), SV_ARG(textSV));
     }
 }
 
 
-void XmlParser::parseXournalTag() {
-    const auto attributeMap = getAttributeMap();
+XmlParser::XmlParser(LoadHandler* handler): handler(handler) { xoj_assert(this->handler); }
 
+
+void XmlParser::parseUnknownTag(const XmlParserHelper::AttributeMap& attributeMap) {
+    if (this->hierarchy.empty()) {
+        // Unknown tag at document root. Assume it's another application (like Xournal++ or MrWriter) that has
+        // its own tag name, but a similar structure. Attempt parsing anyways.
+        this->handler->addDocument("Unknown", 1);
+        g_warning("Attempting to parse unknown document type.");
+    }
+}
+
+void XmlParser::parseXournalTag(const XmlParserHelper::AttributeMap& attributeMap) {
+    const auto optCreator = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::CREATOR_STR, attributeMap);
     std::string creator;
-    const auto optCreator = XmlParserHelper::getAttrib<std::string>(xoj::xml_attrs::CREATOR_STR, attributeMap);
     if (optCreator) {
         creator = *optCreator;
     } else {
         // Compatibility: the creator attribute exists since 7017b71. Before that, only a version string was written
-        const auto optVersion = XmlParserHelper::getAttrib<std::string>(xoj::xml_attrs::VERSION_STR, attributeMap);
+        const auto optVersion = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::VERSION_STR, attributeMap);
         if (optVersion) {
-            creator = "Xournal " + *optVersion;
+            creator = "Xournal ";
+            creator += *optVersion;
         } else {
             creator = "Unknown";
         }
     }
 
-    const auto fileversion = XmlParserHelper::getAttribMandatory<int>(xoj::xml_attrs::FILEVERSION_STR, attributeMap, 1);
+    const auto fileVersion =
+            XmlParserHelper::getAttribMandatory<int>(xoj::xml_attrs::FILEVERSION_STR, attributeMap, 1,
+                                                     /*do not warn: attribute does not exist in zip files*/ false);
 
-    this->handler->addXournal(std::move(creator), fileversion);
+    this->handler->addDocument(std::move(creator), fileVersion);
 }
 
-void XmlParser::parseMrWriterTag() {
-    const auto attributeMap = getAttributeMap();
-
+void XmlParser::parseMrWriterTag(const XmlParserHelper::AttributeMap& attributeMap) {
+    auto optVersion = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::VERSION_STR, attributeMap);
     std::string creator;
-    auto optVersion = XmlParserHelper::getAttrib<std::string>(xoj::xml_attrs::VERSION_STR, attributeMap);
     if (optVersion) {
-        creator = "MrWriter " + *optVersion;
+        creator = "MrWriter ";
+        creator += *optVersion;
     } else {
         creator = "Unknown";
     }
 
-    this->handler->addMrWriter(std::move(creator));
+    this->handler->addDocument(std::move(creator), 1);
 }
 
-void XmlParser::parsePageTag() {
-    const auto attributeMap = getAttributeMap();
-
+void XmlParser::parsePageTag(const XmlParserHelper::AttributeMap& attributeMap) {
     const auto width = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::WIDTH_STR, attributeMap);
     const auto height = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::HEIGHT_STR, attributeMap);
 
     this->handler->addPage(width, height);
 }
 
-void XmlParser::parseAudioTag() {
-    const auto attributeMap = getAttributeMap();
-
+void XmlParser::parseAudioTag(const XmlParserHelper::AttributeMap& attributeMap) {
     auto filename = XmlParserHelper::getAttribMandatory<fs::path>(xoj::xml_attrs::AUDIO_FILENAME_STR, attributeMap);
 
     this->handler->addAudioAttachment(std::move(filename));
 }
 
-void XmlParser::parseBackgroundTag() {
-    const auto attributeMap = getAttributeMap();
-
-    auto name = XmlParserHelper::getAttrib<std::string>(xoj::xml_attrs::NAME_STR, attributeMap);
-    const auto optType = XmlParserHelper::getAttrib<std::string>(xoj::xml_attrs::TYPE_STR, attributeMap);
+void XmlParser::parseBackgroundTag(const XmlParserHelper::AttributeMap& attributeMap) {
+    auto name = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::NAME_STR, attributeMap);
+    const auto optType = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::TYPE_STR, attributeMap);
 
     if (name) {
-        this->handler->setBgName(std::move(*name));
+        this->handler->setBgName(std::string{*name});
     }
     if (optType) {
         if (*optType == "solid") {
@@ -457,7 +210,7 @@ void XmlParser::parseBackgroundTag() {
         } else if (*optType == "pdf") {
             parseBgPdf(attributeMap);
         } else {
-            g_warning("XML parser: Ignoring unknown background type \"%s\"", optType->c_str());
+            g_warning("XML parser: Ignoring unknown background type \"" SV_FMT "\"", SV_ARG(*optType));
         }
     } else {
         // It's not possible to assume a default type as other attributes have to be set in fuction of this. Not setting
@@ -467,9 +220,9 @@ void XmlParser::parseBackgroundTag() {
 }
 
 void XmlParser::parseBgSolid(const XmlParserHelper::AttributeMap& attributeMap) {
-    const auto optStyle = XmlParserHelper::getAttrib<std::string>(xoj::xml_attrs::STYLE_STR, attributeMap);
+    const auto optStyle = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::STYLE_STR, attributeMap);
     const auto config =
-            XmlParserHelper::getAttribMandatory<std::string>(xoj::xml_attrs::CONFIG_STR, attributeMap, "", false);
+            XmlParserHelper::getAttribMandatory<std::string_view>(xoj::xml_attrs::CONFIG_STR, attributeMap, "", false);
     PageType bg;
     if (optStyle) {
         bg.format = PageTypeHandler::getPageTypeFormatForString(*optStyle);
@@ -487,7 +240,7 @@ void XmlParser::parseBgPixmap(const XmlParserHelper::AttributeMap& attributeMap)
 
     if (domain != XmlParserHelper::Domain::CLONE) {
         const fs::path filename =
-                XmlParserHelper::getAttribMandatory<std::string>(xoj::xml_attrs::FILENAME_STR, attributeMap);
+                XmlParserHelper::getAttribMandatory<std::string_view>(xoj::xml_attrs::FILENAME_STR, attributeMap);
         this->handler->setBgPixmap(domain == XmlParserHelper::Domain::ATTACH, filename);
     } else {
         // In case of a cloned background image, filename contains the page
@@ -507,7 +260,7 @@ void XmlParser::parseBgPdf(const XmlParserHelper::AttributeMap& attributeMap) {
         }
 
         const fs::path filename =
-                XmlParserHelper::getAttribMandatory<std::string>(xoj::xml_attrs::FILENAME_STR, attributeMap);
+                XmlParserHelper::getAttribMandatory<std::string_view>(xoj::xml_attrs::FILENAME_STR, attributeMap);
 
         if (!filename.empty()) {
             this->pdfFilenameParsed = true;
@@ -523,18 +276,14 @@ void XmlParser::parseBgPdf(const XmlParserHelper::AttributeMap& attributeMap) {
     this->handler->setBgPdf(pageno);
 }
 
-void XmlParser::parseLayerTag() {
-    const auto attributeMap = getAttributeMap();
-
-    const auto name = XmlParserHelper::getAttrib<std::string>(xoj::xml_attrs::NAME_STR, attributeMap);
+void XmlParser::parseLayerTag(const XmlParserHelper::AttributeMap& attributeMap) {
+    const auto name = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::NAME_STR, attributeMap);
 
     this->handler->addLayer(name);
 }
 
-void XmlParser::parseTimestampTag() {
+void XmlParser::parseTimestampTag(const XmlParserHelper::AttributeMap& attributeMap) {
     // Compatibility: timestamps for audio elements are stored in the attributes since 6b43baf
-
-    const auto attributeMap = getAttributeMap();
 
     if (!this->tempFilename.empty()) {
         g_warning("XML parser: Discarding unused audio timestamp element. Filename: %s",
@@ -542,13 +291,11 @@ void XmlParser::parseTimestampTag() {
     }
 
     this->tempFilename =
-            XmlParserHelper::getAttribMandatory<std::string>(xoj::xml_attrs::AUDIO_FILENAME_STR, attributeMap);
+            XmlParserHelper::getAttribMandatory<std::string_view>(xoj::xml_attrs::AUDIO_FILENAME_STR, attributeMap);
     this->tempTimestamp = XmlParserHelper::getAttribMandatory<size_t>(xoj::xml_attrs::TIMESTAMP_STR, attributeMap);
 }
 
-void XmlParser::parseStrokeTag() {
-    const auto attributeMap = getAttributeMap();
-
+void XmlParser::parseStrokeTag(const XmlParserHelper::AttributeMap& attributeMap) {
     // tool
     const auto tool =
             XmlParserHelper::getAttribMandatory<StrokeTool>(xoj::xml_attrs::TOOL_STR, attributeMap, StrokeTool::PEN);
@@ -556,22 +303,22 @@ void XmlParser::parseStrokeTag() {
     const auto color = XmlParserHelper::getAttribColorMandatory(attributeMap, Colors::black);
 
     // width
-    auto widthStr = XmlParserHelper::getAttribMandatory<std::string>(xoj::xml_attrs::WIDTH_STR, attributeMap, "1");
+    auto widthStr = XmlParserHelper::getAttribMandatory<const char*>(xoj::xml_attrs::WIDTH_STR, attributeMap, "1");
     // Use g_ascii_strtod instead of streams beacuse it is about twice as fast
-    const char* itPtr = widthStr.c_str();
+    const char* itPtr = widthStr;
     char* endPtr = nullptr;
     const double width = g_ascii_strtod(itPtr, &endPtr);
 
     // pressures
-    auto pressureStr = XmlParserHelper::getAttrib<std::string>(xoj::xml_attrs::PRESSURES_STR, attributeMap);
-    if (pressureStr) {
+    auto pressureCStr = XmlParserHelper::getAttrib<const char*>(xoj::xml_attrs::PRESSURES_STR, attributeMap);
+    if (pressureCStr) {
         // MrWriter writes pressures in a separate field
-        itPtr = pressureStr->c_str();
+        itPtr = *pressureCStr;
     } else {
         // Xournal and Xournal++ use the width field
         itPtr = endPtr;
     }
-    while (*itPtr != 0) {
+    while (*itPtr != '\0') {
         const double pressure = g_ascii_strtod(itPtr, &endPtr);
         if (endPtr == itPtr) {
             // Parsing failed
@@ -593,7 +340,8 @@ void XmlParser::parseStrokeTag() {
     const auto lineStyle = XmlParserHelper::getAttrib<LineStyle>(xoj::xml_attrs::STYLE_STR, attributeMap);
 
     // audio filename and timestamp
-    const auto optFilename = XmlParserHelper::getAttrib<std::string>(xoj::xml_attrs::AUDIO_FILENAME_STR, attributeMap);
+    const auto optFilename =
+            XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::AUDIO_FILENAME_STR, attributeMap);
     if (optFilename && !optFilename->empty()) {
         if (!this->tempFilename.empty()) {
             g_warning("XML parser: Discarding audio timestamp element, because stroke tag contains \"fn\" attribute");
@@ -611,14 +359,14 @@ void XmlParser::parseStrokeTag() {
     this->tempTimestamp = 0;
 }
 
-void XmlParser::parseStrokeText() {
+void XmlParser::parseStrokeText(std::string_view text) {
     std::vector<Point> pointVector;
     pointVector.reserve(this->pressureBuffer.size());
 
     // Use g_ascii_strtod instead of streams beacuse it is about twice as fast
-    const char* itPtr = reinterpret_cast<const char*>(xmlTextReaderConstValue(this->reader.get()));
+    const char* itPtr = text.data();
     char* endPtr = nullptr;
-    while (*itPtr != 0) {
+    while (itPtr != text.end()) {
         const double x = g_ascii_strtod(itPtr, &endPtr);
         itPtr = endPtr;
         // Note: should the first call to g_ascii_strtod have failed, the second one will be given the same input
@@ -636,17 +384,16 @@ void XmlParser::parseStrokeText() {
     this->handler->setStrokePoints(std::move(pointVector), std::move(this->pressureBuffer));
 }
 
-void XmlParser::parseTextTag() {
-    const auto attributeMap = getAttributeMap();
-
-    auto font = XmlParserHelper::getAttribMandatory<std::string>(xoj::xml_attrs::FONT_STR, attributeMap, "Sans");
+void XmlParser::parseTextTag(const XmlParserHelper::AttributeMap& attributeMap) {
+    auto font = XmlParserHelper::getAttribMandatory<std::string_view>(xoj::xml_attrs::FONT_STR, attributeMap, "Sans");
     const auto size = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::SIZE_STR, attributeMap, 12);
     const auto x = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::X_COORD_STR, attributeMap);
     const auto y = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::Y_COORD_STR, attributeMap);
     const auto color = XmlParserHelper::getAttribColorMandatory(attributeMap, Colors::black);
 
     // audio filename and timestamp
-    const auto optFilename = XmlParserHelper::getAttrib<std::string>(xoj::xml_attrs::AUDIO_FILENAME_STR, attributeMap);
+    const auto optFilename =
+            XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::AUDIO_FILENAME_STR, attributeMap);
     if (optFilename && !optFilename->empty()) {
         if (!this->tempFilename.empty()) {
             g_warning("XML parser: Discarding audio timestamp element, because text tag contains \"fn\" attribute");
@@ -656,19 +403,14 @@ void XmlParser::parseTextTag() {
                 XmlParserHelper::getAttribMandatory<size_t>(xoj::xml_attrs::TIMESTAMP_STR, attributeMap, 0UL);
     }
 
-    this->handler->addText(std::move(font), size, x, y, color, std::move(tempFilename), tempTimestamp);
+    this->handler->addText(std::string{font}, size, x, y, color, std::move(tempFilename), tempTimestamp);
 
     this->tempTimestamp = 0;
 }
 
-void XmlParser::parseTextText() {
-    auto text = std::string(reinterpret_cast<const char*>(xmlTextReaderConstValue(this->reader.get())));
-    this->handler->setTextContents(std::move(text));
-}
+void XmlParser::parseTextText(std::string_view text) { this->handler->setTextContents(std::string{text}); }
 
-void XmlParser::parseImageTag() {
-    const auto attributeMap = getAttributeMap();
-
+void XmlParser::parseImageTag(const XmlParserHelper::AttributeMap& attributeMap) {
     const auto left = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::LEFT_POS_STR, attributeMap);
     const auto top = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::TOP_POS_STR, attributeMap);
     const auto right = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::RIGHT_POS_STR, attributeMap);
@@ -677,39 +419,38 @@ void XmlParser::parseImageTag() {
     this->handler->addImage(left, top, right, bottom);
 }
 
-void XmlParser::parseImageText() {
-    std::string imageData =
-            XmlParserHelper::decodeBase64(reinterpret_cast<const char*>(xmlTextReaderConstValue(this->reader.get())));
-    this->handler->setImageData(std::move(imageData));
+void XmlParser::parseImageText(std::string_view text) {
+    if (!isAllWhitespace(text)) {
+        std::string imageData = XmlParserHelper::decodeBase64(text);
+        this->handler->setImageData(std::move(imageData));
+    }
 }
 
-void XmlParser::parseTexImageTag() {
-    const auto attributeMap = getAttributeMap();
-
+void XmlParser::parseTexImageTag(const XmlParserHelper::AttributeMap& attributeMap) {
     const auto left = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::LEFT_POS_STR, attributeMap);
     const auto top = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::TOP_POS_STR, attributeMap);
     const auto right = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::RIGHT_POS_STR, attributeMap);
     const auto bottom = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::BOTTOM_POS_STR, attributeMap);
 
-    auto text = XmlParserHelper::getAttribMandatory<std::string>(xoj::xml_attrs::TEXT_STR, attributeMap);
+    auto text = XmlParserHelper::getAttribMandatory<std::string_view>(xoj::xml_attrs::TEXT_STR, attributeMap);
 
-    // Attribute "texlength" found in eralier parsers was a workaround from 098a67b to bdd0ec2
+    // Attribute "texlength" found in earlier parsers was a workaround from 098a67b to bdd0ec2
 
-    this->handler->addTexImage(left, top, right, bottom, std::move(text));
+    this->handler->addTexImage(left, top, right, bottom, std::string{text});
 }
 
-void XmlParser::parseTexImageText() {
-    std::string imageData =
-            XmlParserHelper::decodeBase64(reinterpret_cast<const char*>(xmlTextReaderConstValue(this->reader.get())));
-    this->handler->setTexImageData(std::move(imageData));
+void XmlParser::parseTexImageText(std::string_view text) {
+    if (!isAllWhitespace(text)) {
+        std::string imageData = XmlParserHelper::decodeBase64(text);
+        this->handler->setTexImageData(std::move(imageData));
+    }
 }
 
-void XmlParser::parseAttachment() {
-    const auto attributeMap = getAttributeMap();
-
+void XmlParser::parseAttachmentTag(const XmlParserHelper::AttributeMap& attributeMap) {
     const auto path = XmlParserHelper::getAttribMandatory<fs::path>(xoj::xml_attrs::PATH_STR, attributeMap);
 
-    switch (this->hierarchy.top()) {
+    xoj_assert(this->lastValidTag);
+    switch (*this->lastValidTag) {
         case TagType::IMAGE:
             this->handler->setImageAttachment(path);
             break;
@@ -717,117 +458,73 @@ void XmlParser::parseAttachment() {
             this->handler->setTexImageAttachment(path);
             break;
         default:
+            g_warning("Ignoring attachment tag under " SV_FMT, SV_ARG(TAG_NAMES[*this->lastValidTag]));
             break;
     }
 }
 
-
-auto XmlParser::getAttributeMap() -> XmlParserHelper::AttributeMap {
-    xoj_assert(xmlTextReaderNodeType(this->reader.get()) == XML_ELEMENT_NODE);
-
-    XmlParserHelper::AttributeMap attributeMap;
-    while (xmlTextReaderMoveToNextAttribute(this->reader.get())) {
-        attributeMap[currentName()] = reinterpret_cast<const char*>(xmlTextReaderConstValue(this->reader.get()));
-    }
-
-    DEBUG_PARSER(debugPrintAttributes(attributeMap));
-
-    return attributeMap;
-}
-
-
-auto XmlParser::openTag() -> TagType {
-    const TagType type = currentTagType();
-    // Add a level to the hierarchy only if the element isn't "empty" (which
-    // means there is no closing element)
-    if (!xmlTextReaderIsEmptyElement(this->reader.get())) {
-        this->hierarchy.push(type);
-    }
-    return type;
-}
-
-void XmlParser::closeTag(TagType type) {
-    // Check that the document structure is not messed up
-    if (this->hierarchy.empty()) {
-        throw std::runtime_error(
-                FS(_F("Error parsing XML file: found closing tag \"{1}\" at document root") % TAG_NAMES[type]));
-    }
-    if (this->hierarchy.top() != type) {
-        throw std::runtime_error(
-                FS(_F("Error parsing XML file: closing tag \"{1}\" does not correspond to last open element \"{2}\"") %
-                   TAG_NAMES[type] % TAG_NAMES[this->hierarchy.top()]));
-    }
-
-    // Go up one level in the hierarchy
-    this->hierarchy.pop();
-}
-
-auto XmlParser::tagNameToType(std::string_view name) const -> TagType {
+auto XmlParser::getTagType(std::string_view name) const -> TagType {
     using namespace std::literals;
 
-    if ("MrWriter"sv == name)
-        return TagType::MRWRITER;
-    if ("attachment"sv == name)
-        return TagType::ATTACHMENT;
-    if ("audio"sv == name)
-        return TagType::AUDIO;
-    if ("background"sv == name)
-        return TagType::BACKGROUND;
-    if ("image"sv == name)
-        return TagType::IMAGE;
-    if ("layer"sv == name)
-        return TagType::LAYER;
-    if ("page"sv == name)
-        return TagType::PAGE;
-    if ("preview"sv == name)
-        return TagType::PREVIEW;
-    if ("stroke"sv == name)
-        return TagType::STROKE;
-    if ("teximage"sv == name)
-        return TagType::TEXIMAGE;
-    if ("text"sv == name)
-        return TagType::TEXT;
-    if ("timestamp"sv == name)
-        return TagType::TIMESTAMP;
-    if ("title"sv == name)
-        return TagType::TITLE;
-    if ("xournal"sv == name)
-        return TagType::XOURNAL;
+    if (this->hierarchy.empty()) {
+        // Parser is at top level
+        if (TAG_NAMES[TagType::XOURNAL] == name)
+            return TagType::XOURNAL;
+        if (TAG_NAMES[TagType::MRWRITER] == name)
+            return TagType::MRWRITER;
+    } else if (!this->lastValidTag) {
+        // Hiearchy contains only unknown tags. Allow parsing of document contents.
+        if (TAG_NAMES[TagType::TITLE] == name)
+            return TagType::TITLE;
+        if (TAG_NAMES[TagType::PREVIEW] == name)
+            return TagType::PREVIEW;
+        if (TAG_NAMES[TagType::PAGE] == name)
+            return TagType::PAGE;
+        if (TAG_NAMES[TagType::AUDIO] == name)
+            return TagType::AUDIO;
+    } else {
+        switch (*this->lastValidTag) {
+            case TagType::XOURNAL:
+            case TagType::MRWRITER:
+                if (TAG_NAMES[TagType::TITLE] == name)
+                    return TagType::TITLE;
+                if (TAG_NAMES[TagType::PREVIEW] == name)
+                    return TagType::PREVIEW;
+                if (TAG_NAMES[TagType::PAGE] == name)
+                    return TagType::PAGE;
+                if (TAG_NAMES[TagType::AUDIO] == name)
+                    return TagType::AUDIO;
+                break;
+            case TagType::PAGE:
+                if (TAG_NAMES[TagType::BACKGROUND] == name)
+                    return TagType::BACKGROUND;
+                if (TAG_NAMES[TagType::LAYER] == name)
+                    return TagType::LAYER;
+                break;
+            case TagType::LAYER:
+                if (TAG_NAMES[TagType::TIMESTAMP] == name)
+                    return TagType::TIMESTAMP;
+                if (TAG_NAMES[TagType::STROKE] == name)
+                    return TagType::STROKE;
+                if (TAG_NAMES[TagType::TEXT] == name)
+                    return TagType::TEXT;
+                if (TAG_NAMES[TagType::IMAGE] == name)
+                    return TagType::IMAGE;
+                if (TAG_NAMES[TagType::TEXIMAGE] == name)
+                    return TagType::TEXIMAGE;
+                break;
+            case TagType::IMAGE:
+            case TagType::TEXIMAGE:
+                if (TAG_NAMES[TagType::ATTACHMENT] == name)
+                    return TagType::ATTACHMENT;
+                break;
+            case TagType::UNKNOWN:
+                xoj_assert_message(false, "TagType::UNKNOWN is not a valid tag");
+            default:
+                xoj_assert_message(false, "Illegal tag in hierarchy");
+        }
+    }
+
+    // Tag name could not be matched with an expected type
     return TagType::UNKNOWN;
 }
-auto XmlParser::currentName() -> const char* {
-    return reinterpret_cast<const char*>(xmlTextReaderConstName(this->reader.get()));
-}
-auto XmlParser::currentTagType() -> TagType { return tagNameToType(currentName()); }
-
-#ifdef DEBUG_XML_PARSER
-void XmlParser::debugPrintNode() {
-    const char *name = nullptr, *value = nullptr;
-
-    name = currentName();
-    if (name == nullptr) {
-        name = "--";
-    }
-
-    std::cout << std::dec << std::boolalpha << "Depth: " << xmlTextReaderDepth(this->reader.get())
-              << "  Type: " << xmlTextReaderNodeType(this->reader.get()) << "  Name: " << name
-              << "  Empty: " << xmlTextReaderIsEmptyElement(this->reader.get());
-
-    value = reinterpret_cast<const char*>(xmlTextReaderConstValue(this->reader.get()));
-    if (value == nullptr) {
-        std::cout << '\n';
-    } else {
-        std::cout << "  Value: \"" << value << "\"\n";
-    }
-}
-
-void XmlParser::debugPrintAttributes(const XmlParserHelper::AttributeMap& attributes) {
-    if (!attributes.empty()) {
-        std::cout << "Attributes:";
-        for (const auto& [key, value]: attributes) {
-            std::cout << " [" << key << "] = " << value << ";";
-        }
-        std::cout << '\n';
-    }
-}
-#endif

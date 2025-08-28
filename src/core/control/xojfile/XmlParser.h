@@ -13,117 +13,95 @@
 
 #include <cstdlib>
 #include <functional>
-#include <stack>
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include <libxml/xmlreader.h>
-
 #include "control/xojfile/InputStream.h"
+#include "control/xojfile/LoadHandler.h"
 #include "control/xojfile/XmlParserHelper.h"
 #include "control/xojfile/XmlTags.h"
 
 #include "config-debug.h"
 #include "filesystem.h"
 
-class LoadHandler;
-
 
 class XmlParser {
 public:
-    XmlParser(InputStream& input, LoadHandler* handler);
+    XmlParser(LoadHandler* handler);
 
-    /**
-     * @brief Parse the XML input and forward data to the handler's appropriate add*,
-     * addText* and finalize* functions
-     *
-     * Loops over all elements at the current depth level and calls processNodeFunction
-     * at each node. Returns when the current element is closed or the EOF is reached.
-     * If the function returns before EOF is reached, the reader points to a not yet
-     * processed closing node.
-     *
-     * If the first operation does not return a start element node, the function
-     * exits immediately.
-     *
-     * @param processNodeFunction should be able to process any child nodes of
-     * the current element. It should call parse() again with an appropriate
-     * node processing funcion when expecting grandchildren. Otherwise, it
-     * should return xmlTextReaderRead().
-     *
-     * @return The result of the last read operation.
-     */
-    int parse(const std::function<int(XmlParser*)>& processNodeFunction = &XmlParser::processRootNode);
+    static void parserStartElement(GMarkupParseContext* context, const gchar* elementName, const gchar** attributeNames,
+                                   const gchar** attributeValues, gpointer userdata, GError** error);
+    static void parserEndElement(GMarkupParseContext* context, const gchar* elementName, gpointer userdata,
+                                 GError** error);
+    static void parserText(GMarkupParseContext* context, const gchar* text, gsize textLen, gpointer userdata,
+                           GError** error);
 
 private:
-    int processRootNode();
-    int processDocumentChildNode();
-    int processPageChildNode();
-    int processLayerChildNode();
-    int processAttachment();
-
-    void parseXournalTag();
-    void parseMrWriterTag();
-    void parsePageTag();
-    void parseAudioTag();
-    void parseBackgroundTag();
+    void parseUnknownTag(const XmlParserHelper::AttributeMap& attributeMap);
+    void parseXournalTag(const XmlParserHelper::AttributeMap& attributeMap);
+    void parseMrWriterTag(const XmlParserHelper::AttributeMap& attributeMap);
+    void parsePageTag(const XmlParserHelper::AttributeMap& attributeMap);
+    void parseAudioTag(const XmlParserHelper::AttributeMap& attributeMap);
+    void parseBackgroundTag(const XmlParserHelper::AttributeMap& attributeMap);
     void parseBgSolid(const XmlParserHelper::AttributeMap& attributeMap);
     void parseBgPixmap(const XmlParserHelper::AttributeMap& attributeMap);
     void parseBgPdf(const XmlParserHelper::AttributeMap& attributeMap);
-    void parseLayerTag();
-    void parseTimestampTag();
-    void parseStrokeTag();
-    void parseStrokeText();
-    void parseTextTag();
-    void parseTextText();
-    void parseImageTag();
-    void parseImageText();
-    void parseTexImageTag();
-    void parseTexImageText();
-    void parseAttachment();
+    void parseLayerTag(const XmlParserHelper::AttributeMap& attributeMap);
+    void parseTimestampTag(const XmlParserHelper::AttributeMap& attributeMap);
+    void parseStrokeTag(const XmlParserHelper::AttributeMap& attributeMap);
+    void parseStrokeText(std::string_view text);
+    void parseTextTag(const XmlParserHelper::AttributeMap& attributeMap);
+    void parseTextText(std::string_view text);
+    void parseImageTag(const XmlParserHelper::AttributeMap& attributeMap);
+    void parseImageText(std::string_view text);
+    void parseTexImageTag(const XmlParserHelper::AttributeMap& attributeMap);
+    void parseTexImageText(std::string_view text);
+    void parseAttachmentTag(const XmlParserHelper::AttributeMap& attributeMap);
 
+    xoj::xml_tags::Type getTagType(std::string_view name) const;
 
-    /**
-     * Get an attribute map for the current tag
-     */
-    XmlParserHelper::AttributeMap getAttributeMap();
-
-    /**
-     * Add the current node's tag to the hierarchy stack and return it
-     */
-    xoj::xml_tags::Type openTag();
-    /**
-     * Remove the specified tag from the hierarchy stack. This function also
-     * checks the document integrity together with `openTag()`: each opening
-     * tag matches exactly one closing tag of the same name.
-     * @exception Throws a `std::runtime_error` if the document structure is not
-     *            sound.
-     */
-    void closeTag(xoj::xml_tags::Type type);
-
-    xoj::xml_tags::Type tagNameToType(std::string_view name) const;
-    const char* currentName();
-    xoj::xml_tags::Type currentTagType();
-
-#ifdef DEBUG_XML_PARSER
-    void debugPrintNode();
-    void debugPrintAttributes(const XmlParserHelper::AttributeMap& attributes);
-#endif
-
-
-    struct textReaderDeleter {
-        void operator()(xmlTextReader* ptr) { xmlFreeTextReader(ptr); }
+    using StartElementFunc = void (XmlParser::*)(const XmlParserHelper::AttributeMap&);
+    using TextFunc = void (XmlParser::*)(std::string_view);
+    using EndElementFunc = void (LoadHandler::*)();
+    struct ParsingEntry {
+        StartElementFunc start;
+        TextFunc text;
+        EndElementFunc end;
     };
-    using xmlTextReaderWrapper = std::unique_ptr<xmlTextReader, textReaderDeleter>;
+    static constexpr EnumIndexedArray<ParsingEntry, xoj::xml_tags::Type> parsingTable{
+            EnumIndexedArray<ParsingEntry, xoj::xml_tags::Type>::underlying_array_type{{
+                    {&XmlParser::parseUnknownTag, {}, {}},                               // TagType::UNKNOWN
+                    {&XmlParser::parseXournalTag, {}, &LoadHandler::finalizeDocument},   // TagType::XOURNAL
+                    {&XmlParser::parseMrWriterTag, {}, &LoadHandler::finalizeDocument},  // TagType::MRWRITER
+                    {{}, {}, {}},                                                        // TagType::TITLE (ignored)
+                    {{}, {}, {}},                                                        // TagType::PREVIEW (ignored)
+                    {&XmlParser::parsePageTag, {}, &LoadHandler::finalizePage},          // TagType::PAGE
+                    {&XmlParser::parseAudioTag, {}, {}},                                 // TagType::AUDIO
+                    {&XmlParser::parseBackgroundTag, {}, {}},                            // TagType::BACKGROUND
+                    {&XmlParser::parseLayerTag, {}, &LoadHandler::finalizeLayer},        // TagType::LAYER
+                    {&XmlParser::parseTimestampTag, {}, {}},                             // TagType::TIMESTAMP
+                    {&XmlParser::parseStrokeTag, &XmlParser::parseStrokeText,
+                     &LoadHandler::finalizeStroke},  // TagType::STROKE
+                    {&XmlParser::parseTextTag, &XmlParser::parseTextText, &LoadHandler::finalizeText},  // TagType::TEXT
+                    {&XmlParser::parseImageTag, &XmlParser::parseImageText,
+                     &LoadHandler::finalizeImage},  // TagType::IMAGE
+                    {&XmlParser::parseTexImageTag, &XmlParser::parseTexImageText,
+                     &LoadHandler::finalizeTexImage},         // TagType::TEXIMAGE
+                    {&XmlParser::parseAttachmentTag, {}, {}}  // TagType::ATTACHMENT
+            }}};
 
-
-    xmlTextReaderWrapper reader;
+    // Handler to which the parsed data is forwarded
     LoadHandler* handler;
 
-    std::stack<xoj::xml_tags::Type> hierarchy;
+    // Stack containing the tag types found at every level in the document
+    std::vector<xoj::xml_tags::Type> hierarchy;
+    // Variable to track the topmost valid tag type in the hierarchy stack
+    std::optional<xoj::xml_tags::Type> lastValidTag;
 
-    bool pdfFilenameParsed;
+    bool pdfFilenameParsed = false;
 
-    size_t tempTimestamp;
+    size_t tempTimestamp = 0;
     fs::path tempFilename;
 
     std::vector<double> pressureBuffer;

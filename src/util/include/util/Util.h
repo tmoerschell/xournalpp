@@ -94,12 +94,16 @@ constexpr const gchar* PRECISION_FORMAT_STRING = "%.8g";
 
 constexpr const auto DPI_NORMALIZATION_FACTOR = 72.0;
 
+// Helpers for C-style formatting of string views
+#define SV_FMT "%.*s"
+#define SV_ARG(sv) static_cast<int>((sv).size()), (sv).data()
+
 /**
  * Get the demangled name string of type T
  */
 template <typename T>
-std::string demangledTypeName(T var) {
-    const char* name = typeid(var).name();
+std::string demangledTypeName() {
+    const char* name = typeid(T).name();
 #ifdef XOJ_USE_CXXABI
     char* demangledName = abi::__cxa_demangle(name, nullptr, nullptr, nullptr);
     if (demangledName) {

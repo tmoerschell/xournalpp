@@ -77,8 +77,7 @@ public:
 
 public:
     // interface for XmlParser
-    void addXournal(std::string creator, int fileversion);
-    void addMrWriter(std::string creator);
+    void addDocument(std::string creator, int fileVersion);
     void finalizeDocument();
     void addPage(double width, double height);
     void finalizePage();
@@ -89,7 +88,7 @@ public:
     void setBgPixmapCloned(size_t pageNr);
     void setBgPdf(size_t pageno);
     void loadBgPdf(bool attach, const fs::path& filename);
-    void addLayer(const std::optional<std::string>& name);
+    void addLayer(const std::optional<std::string_view>& name);
     void finalizeLayer();
     void addStroke(StrokeTool tool, Color color, double width, int fill, StrokeCapStyle capStyle,
                    const std::optional<LineStyle>& lineStyle, fs::path filename, size_t timestamp);
@@ -108,9 +107,6 @@ public:
     void finalizeTexImage();
 
 private:
-    /** Clear any attributes that may have been used before */
-    void initAttributes();
-
     /**
      * Open a file for reading
      * If the file is a zip file, initializes `zipFp` for access to the other

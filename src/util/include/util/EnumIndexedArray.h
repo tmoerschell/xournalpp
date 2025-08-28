@@ -28,6 +28,7 @@ public:
 
     template <typename... Args>
     constexpr EnumIndexedArray(Args&&... args): underlying_array_type{std::forward<Args>(args)...} {};
+    constexpr EnumIndexedArray(underlying_array_type other): underlying_array_type(other) {};
 
     T& operator[](enum_class value) {
         xoj_assert(value < enum_class::ENUMERATOR_COUNT);

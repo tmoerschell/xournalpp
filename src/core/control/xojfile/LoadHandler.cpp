@@ -70,34 +70,6 @@ LoadHandler::LoadHandler(std::string* errorMessages):
 
 LoadHandler::~LoadHandler() = default;
 
-void LoadHandler::initAttributes() {
-    this->parsingComplete = false;
-    if (errorMessages) {
-        this->errorMessages->clear();
-    }
-
-    this->missingPdf.clear();
-    this->attachedPdfMissing = false;
-    this->pdfFilenameParsed = false;
-
-    this->creator.clear();
-    this->fileVersion = 0;
-    this->minimalFileVersion = 0;
-
-    this->zipFp.reset();
-    this->isGzFile = false;
-
-    this->pages.clear();
-    this->audioFiles.clear();
-
-    this->page.reset();
-    this->layer.reset();
-    this->stroke.reset();
-    this->image.reset();
-    this->teximage.reset();
-    this->text.reset();
-}
-
 auto LoadHandler::isAttachedPdfMissing() const -> bool { return this->attachedPdfMissing; }
 
 auto LoadHandler::getMissingPdfFilename() const -> const fs::path& { return this->missingPdf; }
@@ -105,28 +77,33 @@ auto LoadHandler::getMissingPdfFilename() const -> const fs::path& { return this
 auto LoadHandler::getFileVersion() const -> int { return this->fileVersion; }
 
 
-void LoadHandler::addXournal(std::string creator, int fileversion) {
+void LoadHandler::addDocument(std::string creator, int fileVersion) {
     this->creator = std::move(creator);
-    this->fileVersion = fileversion;
-}
+    if (this->isGzFile) {
+        this->fileVersion = fileVersion;
+    }
 
-void LoadHandler::addMrWriter(std::string creator) {
-    this->creator = std::move(creator);
-    this->fileVersion = 1;
+    this->doc = std::make_unique<Document>(&dHanlder);
 }
 
 void LoadHandler::finalizeDocument() {
+    xoj_assert(this->doc);
+
     this->doc->addPages(this->pages.begin(), this->pages.end());
     this->pages.clear();
     this->parsingComplete = true;
 }
 
 void LoadHandler::addPage(double width, double height) {
+    xoj_assert(!this->page);
+
     this->page = std::make_shared<XojPage>(width, height, /*suppressLayerCreation*/ true);
     this->pages.emplace_back(this->page);
 }
 
 void LoadHandler::finalizePage() {
+    xoj_assert(this->page);
+
     // handle unnecessary layer insertion in case of existing layers in file
     if (this->page->getLayerCount() == 0) {
         this->page->addLayer(new Layer());
@@ -310,12 +287,12 @@ void LoadHandler::loadBgPdf(bool attach, const fs::path& filename) {
     this->pdfFilenameParsed = true;
 }
 
-void LoadHandler::addLayer(const std::optional<std::string>& name) {
+void LoadHandler::addLayer(const std::optional<std::string_view>& name) {
     xoj_assert(!this->layer);
     this->layer = std::make_unique<Layer>();
 
     if (name) {
-        this->layer->setName(*name);
+        this->layer->setName(std::string{*name});
     }
 }
 
@@ -415,11 +392,19 @@ void LoadHandler::addImage(double left, double top, double right, double bottom)
 void LoadHandler::setImageData(std::string data) {
     xoj_assert(this->image);
 
+    if (this->image->hasData()) {
+        g_warning("Image data section found, but the image already has data.");
+    }
+
     this->image->setImage(std::move(data));
 }
 
 void LoadHandler::setImageAttachment(const fs::path& filename) {
     xoj_assert(this->image);
+
+    if (this->image->hasData()) {
+        g_warning("Image attachment found, but the image already has data.");
+    }
 
     auto imageData = readZipAttachment(filename);
     if (imageData) {
@@ -451,12 +436,6 @@ void LoadHandler::setTexImageData(std::string data) {
     this->teximage->loadData(std::move(data));
 }
 
-void LoadHandler::finalizeTexImage() {
-    xoj_assert(this->teximage);
-
-    this->layer->addElement(std::move(this->teximage));
-}
-
 void LoadHandler::setTexImageAttachment(const fs::path& filename) {
     xoj_assert(this->teximage);
 
@@ -466,18 +445,25 @@ void LoadHandler::setTexImageAttachment(const fs::path& filename) {
     }
 }
 
+void LoadHandler::finalizeTexImage() {
+    xoj_assert(this->teximage);
+
+    this->layer->addElement(std::move(this->teximage));
+}
+
 
 std::unique_ptr<InputStream> LoadHandler::openFile(fs::path const& filepath) {
     this->xournalFilepath = filepath;
     int zipError = 0;
     this->zipFp = zip_wrapper(zip_open(filepath.u8string().c_str(), ZIP_RDONLY, &zipError));
 
-    // Try to open the file as a gzip
+    // Check if file is a gzip
     if (!this->zipFp && zipError == ZIP_ER_NOZIP) {
         this->isGzFile = true;
         return std::make_unique<GzInputStream>(filepath);
     }
 
+    // Check if file is a zip
     if (this->zipFp && !this->isGzFile) {
         // Check the mimetype
         auto mimetypeFp = zip_file_wrapper(zip_fopen(this->zipFp.get(), "mimetype", 0));
@@ -525,34 +511,59 @@ std::unique_ptr<InputStream> LoadHandler::openFile(fs::path const& filepath) {
 
 void LoadHandler::closeFile() noexcept { this->zipFp.reset(); }
 
+XOJ_GIO_GUARD_GENERATOR_TYPE(GMarkupParseContext, g_markup_parse_context_free);
+
 void LoadHandler::parseXml(std::unique_ptr<InputStream> xmlContentStream) {
-    xoj_assert(this->doc);
     xoj_assert(xmlContentStream);
 
-    XmlParser parser(*xmlContentStream, this);
-    auto res = parser.parse();
+    XmlParser parserInterface(this);
+    constexpr GMarkupParser parser = {XmlParser::parserStartElement, XmlParser::parserEndElement, XmlParser::parserText,
+                                      nullptr, nullptr};
+    auto context = GMarkupParseContextGuard{
+            g_markup_parse_context_new(&parser, G_MARKUP_DEFAULT_FLAGS, &parserInterface, nullptr)};
 
-    if (res != 0) {
-        logError("File is not finished after end of document");
+    std::array<char, 1024> buffer;
+    int len{};
+    xoj::util::GErrorGuard error;
+    while (true) {
+        len = xmlContentStream->read(buffer.data(), buffer.size());
+        if (len < 0) {
+            throw std::runtime_error(_("Failed to read from compressed file"));
+        } else if (len == 0) {
+            // Reached EOF
+            break;
+        }
+
+        auto valid = g_markup_parse_context_parse(context.get(), buffer.data(), len, xoj::util::out_ptr(error));
+        if (error) {
+            logError(std::string("XML Parser error: ") + error->message);
+            error.reset();
+        }
+        if (!valid) {
+            throw std::runtime_error(_("Invalid XML data read"));
+        }
     }
-    if (!this->parsingComplete) {
-        throw std::runtime_error(_("Document is not complete (maybe the end is cut off?)"));
+
+    // Sanity checks for document validity
+    if (!this->doc) {
+        throw std::runtime_error(_("Document is corrupted (no document tag found in file)"));
     }
-    if (this->parsingComplete && this->doc->getPageCount() == 0) {
+    if (this->doc->getPageCount() == 0) {
         throw std::runtime_error(_("Document is corrupted (no pages found in file)"));
     }
-
-    doc->setCreateBackupOnSave(true);
+    if (!g_markup_parse_context_end_parse(context.get(), xoj::util::out_ptr(error)) || !this->parsingComplete) {
+        throw std::runtime_error(_("Document is not complete (maybe the end is cut off)"));
+    }
 }
 
 
 auto LoadHandler::loadDocument(fs::path const& filepath) -> std::unique_ptr<Document> {
-    initAttributes();
-    this->doc = std::make_unique<Document>(&dHanlder);
-
     auto xmlContentStream = openFile(filepath);
     parseXml(std::move(xmlContentStream));
     closeFile();
+
+    xoj_assert(this->doc);
+    this->doc->setCreateBackupOnSave(true);
 
     if (this->fileVersion == 1 || (this->errorMessages && !this->errorMessages->empty())) {
         // Either, this file was created by Xournal, not Xournal++, or loading
@@ -567,7 +578,6 @@ auto LoadHandler::loadDocument(fs::path const& filepath) -> std::unique_ptr<Docu
         this->doc->setFilepath(filepath);
     }
 
-    xoj_assert(this->doc);
     return std::move(this->doc);
 }
 

@@ -97,7 +97,7 @@ void EraseHandler::eraseStroke(Layer* l, Stroke* s, double x, double y, Range& r
                 return;
             }
 
-            const double paddingCoeff = PADDING_COEFFICIENT_CAP[s->getStrokeCapStyle()];
+            const double paddingCoeff = PADDING_COEFFICIENT_CAP[static_cast<size_t>(s->getStrokeCapStyle())];
             const PaddedBox paddedEraserBox{{x, y}, halfEraserSize, halfEraserSize + paddingCoeff * s->getWidth()};
             auto intersectionParameters = s->intersectWithPaddedBox(paddedEraserBox);
 
@@ -129,7 +129,7 @@ void EraseHandler::eraseStroke(Layer* l, Stroke* s, double x, double y, Range& r
         if (pos == -1) {
             return;
         }
-        const double paddingCoeff = PADDING_COEFFICIENT_CAP[s->getStrokeCapStyle()];
+        const double paddingCoeff = PADDING_COEFFICIENT_CAP[static_cast<size_t>(s->getStrokeCapStyle())];
         const PaddedBox paddedEraserBox{{x, y}, halfEraserSize, halfEraserSize + paddingCoeff * s->getWidth()};
         erasable->erase(paddedEraserBox, range);
     }

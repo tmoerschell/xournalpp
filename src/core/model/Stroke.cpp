@@ -199,7 +199,7 @@ void Stroke::readSerialized(ObjectInputStream& in) {
 
     this->fill = in.readInt();
 
-    this->capStyle = static_cast<StrokeCapStyle>(in.readInt());
+    this->capStyle = static_cast<StrokeCapStyle::Value>(in.readInt());
 
     in.readData(this->points);
     this->lineStyle.readSerialized(in);
@@ -874,47 +874,4 @@ void Stroke::debugPrint() const {
     }
 
     g_message("\n");
-}
-
-
-// stream operator overloads for StrokeTool
-
-auto operator<<(std::ostream& stream, const StrokeTool tool) -> std::ostream& {
-    stream << StrokeTool::NAMES[static_cast<size_t>(tool)];
-    return stream;
-}
-
-auto operator>>(std::istream& stream, StrokeTool& tool) -> std::istream& {
-    std::string str;
-    stream >> str;
-
-    const auto it = std::find(StrokeTool::NAMES.begin(), StrokeTool::NAMES.end(), str);
-    if (it != StrokeTool::NAMES.end()) {
-        tool = static_cast<StrokeTool::Value>(std::distance(StrokeTool::NAMES.begin(), it));
-    } else {
-        // invalid input
-        stream.setstate(std::ios::failbit);
-    }
-    return stream;
-}
-
-// stream operator overloads for StrokeCapStyle
-
-auto operator<<(std::ostream& stream, const StrokeCapStyle style) -> std::ostream& {
-    stream << STROKE_CAP_STYLE_NAMES[static_cast<size_t>(style)];
-    return stream;
-}
-
-auto operator>>(std::istream& stream, StrokeCapStyle& style) -> std::istream& {
-    std::string str;
-    stream >> str;
-
-    const auto it = std::find(STROKE_CAP_STYLE_NAMES.begin(), STROKE_CAP_STYLE_NAMES.end(), str);
-    if (it != StrokeTool::NAMES.end()) {
-        style = static_cast<StrokeCapStyle>(std::distance(STROKE_CAP_STYLE_NAMES.begin(), it));
-    } else {
-        // invalid input
-        stream.setstate(std::ios::failbit);
-    }
-    return stream;
 }

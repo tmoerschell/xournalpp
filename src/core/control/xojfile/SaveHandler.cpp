@@ -151,12 +151,12 @@ void SaveHandler::visitStrokeExtended(XmlPointNode* stroke, const Stroke* s) {
 
     StrokeCapStyle capStyle = s->getStrokeCapStyle();
 
-    if (capStyle >= STROKE_CAP_STYLE_NAMES.size()) {
-        g_warning("Unknown stroke cap type: %d", capStyle);
+    if (capStyle >= StrokeCapStyle::NAMES.size()) {
+        g_warning("Unknown stroke cap type: %d", static_cast<int>(capStyle));
         capStyle = StrokeCapStyle::ROUND;
     }
 
-    stroke->setAttrib(xoj::xml_attrs::CAPSTYLE_STR, STROKE_CAP_STYLE_NAMES[capStyle]);
+    stroke->setAttrib(xoj::xml_attrs::CAPSTYLE_STR, StrokeCapStyle::NAMES[capStyle]);
 
     if (s->getLineStyle().hasDashes()) {
         stroke->setAttrib(xoj::xml_attrs::STYLE_STR, StrokeStyle::formatStyle(s->getLineStyle()));
@@ -226,7 +226,7 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
 
     writeBackgroundName(background, p);
 
-    using namespace XmlParserHelper;  // for Domain and DOMAIN_NAMES
+    using namespace XmlParserHelper;  // for Domain
 
     if (p->getBackgroundType().isPdfPage()) {
         /**
@@ -239,7 +239,7 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
             firstPdfPageVisited = true;
 
             if (doc->isAttachPdf()) {
-                background->setAttrib(xoj::xml_attrs::DOMAIN_STR, DOMAIN_NAMES[Domain::ATTACH]);
+                background->setAttrib(xoj::xml_attrs::DOMAIN_STR, Domain::NAMES[Domain::ATTACH]);
                 auto filepath = doc->getFilepath();
                 Util::clearExtensions(filepath);
                 filepath += ".xopp.bg.pdf";
@@ -261,7 +261,7 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
                 }
             } else {
                 // "absolute" just means path. For backward compatibility, it is hard to change the word
-                background->setAttrib(xoj::xml_attrs::DOMAIN_STR, DOMAIN_NAMES[Domain::ABSOLUTE]);
+                background->setAttrib(xoj::xml_attrs::DOMAIN_STR, Domain::NAMES[Domain::ABSOLUTE]);
                 auto normalizedPath = Util::normalizeAssetPath(doc->getPdfFilepath(), target.parent_path(),
                                                                doc->getPathStorageMode());
                 background->setAttrib(xoj::xml_attrs::FILENAME_STR, std::move(normalizedPath));
@@ -273,13 +273,13 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
 
         int cloneId = p->getBackgroundImage().getCloneId();
         if (cloneId != -1) {
-            background->setAttrib(xoj::xml_attrs::DOMAIN_STR, DOMAIN_NAMES[Domain::CLONE]);
+            background->setAttrib(xoj::xml_attrs::DOMAIN_STR, Domain::NAMES[Domain::CLONE]);
             char* filename = g_strdup_printf("%i", cloneId);
             background->setAttrib(xoj::xml_attrs::FILENAME_STR, filename);
             g_free(filename);
         } else if (p->getBackgroundImage().isAttached() && p->getBackgroundImage().getPixbuf()) {
             char* filename = g_strdup_printf("bg_%d.png", this->attachBgId++);
-            background->setAttrib(xoj::xml_attrs::DOMAIN_STR, DOMAIN_NAMES[Domain::ATTACH]);
+            background->setAttrib(xoj::xml_attrs::DOMAIN_STR, Domain::NAMES[Domain::ATTACH]);
             background->setAttrib(xoj::xml_attrs::FILENAME_STR, filename);
 
             backgroundImages.emplace_back(p->getBackgroundImage());
@@ -295,7 +295,7 @@ void SaveHandler::visitPage(XmlNode* root, ConstPageRef p, const Document* doc, 
             g_free(filename);
         } else {
             // "absolute" just means path. For backward compatibility, it is hard to change the word
-            background->setAttrib(xoj::xml_attrs::DOMAIN_STR, DOMAIN_NAMES[Domain::ABSOLUTE]);
+            background->setAttrib(xoj::xml_attrs::DOMAIN_STR, Domain::NAMES[Domain::ABSOLUTE]);
             auto normalizedPath = Util::normalizeAssetPath(p->getBackgroundImage().getFilepath(), target.parent_path(),
                                                            doc->getPathStorageMode());
             background->setAttrib(xoj::xml_attrs::FILENAME_STR, std::move(normalizedPath));
