@@ -42,6 +42,47 @@ static bool isAllWhitespace(T string) {
     return std::all_of(string.begin(), string.end(), [](unsigned char ch) { return std::isspace(ch); });
 }
 
+/**
+ * Attempt parsing a double and print parsing error warnings
+ *
+ * Skips any leading whitespace and parses the string in the range [it, end) for
+ * a floating point value. On success, `it` is updated to point to the first
+ * parsed character and the function returns true. When the end of the string is
+ * reached before a value was parsed, the function returns false. If a parsing
+ * error occured, the function prints an error message and returns false.
+ *
+ * We use std::from_chars, beacuse it is about 10x faster than streams and about
+ * 5x faster than g_ascii_strtod.
+ *
+ * @param it    Pointer to the beginning of the string, modified to point to the
+ *              first unparsed character
+ * @param end   Pointer to one character past the end of the string
+ * @param value Output parameter for the parsed value
+ */
+static bool parseDouble(const char*& it, const char* end, double& value) {
+    // Skip any leading whitespace
+    while (*it == ' ') {
+        ++it;
+    }
+
+    // Return false if reached end of string
+    if (it == end) {
+        return false;
+    }
+
+    // Parse double
+    const auto [ptr, ec] = std::from_chars(it, end, value);
+    if (ec != std::errc{}) {
+        g_warning("XML parser: Error parsing a double. Remaining string: \"" SV_FMT "\"",
+                  SV_ARG(std::string_view(it, end - it)));
+        return false;
+    }
+
+    // Update start pointer and return
+    it = ptr;
+    return true;
+}
+
 void XmlParser::parserStartElement(GMarkupParseContext* context, const gchar* elementName, const gchar** attributeNames,
                                    const gchar** attributeValues, gpointer userdata, GError** error) {
     auto self = static_cast<XmlParser*>(userdata);
@@ -303,30 +344,24 @@ void XmlParser::parseStrokeTag(const XmlParserHelper::AttributeMap& attributeMap
     const auto color = XmlParserHelper::getAttribColorMandatory(attributeMap, Colors::black);
 
     // width
-    auto widthStr = XmlParserHelper::getAttribMandatory<const char*>(xoj::xml_attrs::WIDTH_STR, attributeMap, "1");
-    // Use g_ascii_strtod instead of streams beacuse it is about twice as fast
-    const char* itPtr = widthStr;
-    char* endPtr = nullptr;
-    const double width = g_ascii_strtod(itPtr, &endPtr);
+    auto widthSV = XmlParserHelper::getAttribMandatory<std::string_view>(xoj::xml_attrs::WIDTH_STR, attributeMap, "1");
+    auto it = widthSV.begin();
+    auto end = widthSV.end();
+    double width{};
+    parseDouble(it, end, width);
 
     // pressures
-    auto pressureCStr = XmlParserHelper::getAttrib<const char*>(xoj::xml_attrs::PRESSURES_STR, attributeMap);
-    if (pressureCStr) {
+    auto pressureSV = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::PRESSURES_STR, attributeMap);
+    if (pressureSV) {
         // MrWriter writes pressures in a separate field
-        itPtr = *pressureCStr;
-    } else {
-        // Xournal and Xournal++ use the width field
-        itPtr = endPtr;
+        it = pressureSV->begin();
+        end = pressureSV->end();
     }
-    while (*itPtr != '\0') {
-        const double pressure = g_ascii_strtod(itPtr, &endPtr);
-        if (endPtr == itPtr) {
-            // Parsing failed
-            g_warning("XML parser: A pressure point could not be parsed as double. Remaining points: \"%s\"", itPtr);
-            break;
-        }
+    // Xournal and Xournal++ use the width field. `it` pointer is already in place.
+
+    double pressure{};
+    while (parseDouble(it, end, pressure)) {
         this->pressureBuffer.emplace_back(pressure);
-        itPtr = endPtr;
     }
 
     // fill
@@ -363,22 +398,11 @@ void XmlParser::parseStrokeText(std::string_view text) {
     std::vector<Point> pointVector;
     pointVector.reserve(this->pressureBuffer.size());
 
-    // Use g_ascii_strtod instead of streams beacuse it is about twice as fast
-    const char* itPtr = text.data();
-    char* endPtr = nullptr;
-    while (itPtr != text.end()) {
-        const double x = g_ascii_strtod(itPtr, &endPtr);
-        itPtr = endPtr;
-        // Note: should the first call to g_ascii_strtod have failed, the second one will be given the same input
-        //       and fail in the same way. We only need to check for an error once.
-        const double y = g_ascii_strtod(itPtr, &endPtr);
-        if (endPtr == itPtr) {
-            // Parsing failed
-            g_warning("XML parser: A stroke coordinate could not be parsed as double. Remaining data: \"%s\"", itPtr);
-            break;
-        }
+    auto it = text.begin();
+    const auto end = text.end();
+    double x{}, y{};
+    while (parseDouble(it, end, x) && parseDouble(it, end, y)) {
         pointVector.emplace_back(x, y);
-        itPtr = endPtr;
     }
 
     this->handler->setStrokePoints(std::move(pointVector), std::move(this->pressureBuffer));
