@@ -1,8 +1,8 @@
 #include "Control.h"
 
-#include <algorithm>  // for max
-#include <cstdlib>    // for size_t
-#include <exception>  // for exce...
+#include <algorithm>   // for max
+#include <cstdlib>     // for size_t
+#include <exception>   // for exce...
 #include <functional>  // for bind
 #include <iterator>    // for end
 #include <memory>      // for make...
@@ -35,6 +35,7 @@
 #include "control/settings/Settings.h"                           // for Sett...
 #include "control/settings/SettingsEnums.h"                      // for Button
 #include "control/settings/ViewModes.h"                          // for ViewM..
+#include "control/shaperecognizer/ShapeRecognizer.h"             // for Shap...
 #include "control/tools/TextEditor.h"                            // for Text...
 #include "control/xojfile/LoadHandler.h"                         // for Load...
 #include "control/zoom/ZoomControl.h"                            // for Zoom...
@@ -1551,6 +1552,25 @@ void Control::openXoppFile(fs::path filepath, int scrollToPage, std::function<vo
             // give the user a second chance to select a new PDF filepath, or to discard the PDF
             ctrl->promptMissingPdf(missingPdf.value(), filepath);
         }
+
+        // Debugging: if we load a single page containing a single layer and a
+        //            single stroke, run the shape recognizer on it
+        if (ctrl->getDocument()->getPageCount() != 1)
+            return;
+        PageRef page = ctrl->getDocument()->getPage(0);
+        if (page->getLayerCount() != 1)
+            return;
+        Layer* layer = page->getSelectedLayer();  // Can only be the one we need
+        auto elements = layer->getElementsView();
+        if (elements.size() != 1)
+            return;
+        auto stroke = const_cast<Stroke*>(dynamic_cast<const Stroke*>(elements[0]));
+        if (stroke == nullptr)
+            return;
+
+        auto recognized = ShapeRecognizer().recognizePatterns(stroke, 20);
+        layer->addElement(std::move(recognized));
+        layer->removeElement(stroke);
     };
 
     if (loadHandler.getFileVersion() > FILE_FORMAT_VERSION) {
