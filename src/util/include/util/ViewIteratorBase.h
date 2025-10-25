@@ -72,6 +72,8 @@ public:
     constexpr auto operator>=(iterator const& other) const -> bool { return it >= other.it; }
     constexpr auto operator!=(iterator const& other) const -> bool { return it != other.it; }
 
+    explicit constexpr operator base_it() const { return it; }
+
     base_it it;
 };
 }  // namespace xoj::util

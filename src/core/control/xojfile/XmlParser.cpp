@@ -29,6 +29,7 @@
 
 static constexpr auto& TAG_NAMES = xoj::xml_tags::NAMES;
 using TagType = xoj::xml_tags::Type;
+using c_string_utf8_view = xoj::util::utf8_view<const char8_t*, xoj::util::CharSentinelClass<char8_t>>;
 
 
 template <typename T>
@@ -97,7 +98,7 @@ void XmlParser::parserStartElement(GMarkupParseContext* context, const gchar* el
     auto self = static_cast<XmlParser*>(userdata);
     xoj_assert(self);
 
-    const auto tagType = self->getTagType(xoj::util::utf8(elementName).sv());
+    const auto tagType = self->getTagType(elementName | xoj::util::utf8);
 
     // Check for unknown tags
     if (tagType == TagType::UNKNOWN) {
@@ -198,10 +199,10 @@ void XmlParser::parseUnknownTag(const XmlParserHelper::AttributeMap& attributeMa
 }
 
 void XmlParser::parseXournalTag(const XmlParserHelper::AttributeMap& attributeMap) {
-    const auto optCreator = XmlParserHelper::getAttrib<std::u8string_view>(xoj::xml_attrs::CREATOR_STR, attributeMap);
+    const auto optCreator = XmlParserHelper::getAttrib<c_string_utf8_view>(xoj::xml_attrs::CREATOR_STR, attributeMap);
     std::u8string creator;
     if (optCreator) {
-        creator = *optCreator;
+        creator = optCreator->str();
     } else {
         // Compatibility: the creator attribute exists since 7017b71. Before that, only a version string was written
         const auto optVersion =
@@ -503,7 +504,8 @@ void XmlParser::parseAttachmentTag(const XmlParserHelper::AttributeMap& attribut
     }
 }
 
-auto XmlParser::getTagType(std::u8string_view name) const -> TagType {
+auto XmlParser::getTagType(xoj::util::utf8_view<const gchar*, xoj::util::CharSentinelClass<gchar>> name) const
+        -> TagType {
     using namespace std::literals;
 
     if (this->hierarchy.empty()) {

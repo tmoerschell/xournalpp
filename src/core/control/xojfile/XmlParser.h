@@ -70,7 +70,7 @@ private:
      * the last valid tag type. Otherwise it returns TagType::UNKNOWN, even if
      * the tag is globally known (e.g. if a page is found under a layer).
      */
-    xoj::xml_tags::Type getTagType(std::u8string_view name) const;
+    xoj::xml_tags::Type getTagType(xoj::util::utf8_view<const gchar*, xoj::util::CharSentinelClass<gchar>> name) const;
 
     using StartElementFunc = void (XmlParser::*)(const XmlParserHelper::AttributeMap&);
     using TextFunc = void (XmlParser::*)(std::u8string_view);

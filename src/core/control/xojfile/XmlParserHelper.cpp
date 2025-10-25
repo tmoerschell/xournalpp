@@ -28,32 +28,16 @@
 #include "filesystem.h"
 
 
-XmlParserHelper::AttributeMap::AttributeMap(const char** attributeNames, const char** attributeValues) {
-    // Get array length, and verify that it is identical for names and values
-    std::size_t attribute_count = 0;
-    while (attributeNames[attribute_count] != nullptr) {
-        xoj_assert(attributeValues[attribute_count] != nullptr);
-        ++attribute_count;
-    }
-    xoj_assert(attributeValues[attribute_count] == nullptr);
+XmlParserHelper::AttributeMap::AttributeMap(const char** attributeNames, const char** attributeValues):
+        names(attributeNames), values(attributeValues) {}
 
-    // Allocate space for string views
-    this->names.resize(attribute_count);
-    this->values.resize(attribute_count);
-
-    // Reference strings
-    for (size_t i = 0; i < attribute_count; ++i) {
-        this->names[i] = xoj::util::utf8(attributeNames[i]).sv();
-        this->values[i] = xoj::util::utf8(attributeValues[i]).sv();
-    }
-}
-
-auto XmlParserHelper::AttributeMap::operator[](const std::u8string_view name) const
-        -> std::optional<std::u8string_view> {
-    auto it = std::ranges::find(this->names, name);
-    if (it != this->names.end()) {
-        // Name was found
-        return this->values[as_unsigned(std::distance(this->names.cbegin(), it))];
+auto XmlParserHelper::AttributeMap::operator[](std::u8string_view name) const -> std::optional<ViewType> {
+    for (auto it = this->names; *it != nullptr; ++it) {
+        if ((*it | xoj::util::utf8) == name) {
+            // Name was found
+            return reinterpret_cast<const char8_t*>(this->values[as_unsigned(std::distance(this->names, it))]) |
+                   xoj::util::utf8;
+        }
     }
 
     // Name not found
@@ -61,11 +45,22 @@ auto XmlParserHelper::AttributeMap::operator[](const std::u8string_view name) co
 }
 
 // template specializations
+using BaseViewType = XmlParserHelper::AttributeMap::ViewType;
+template <>
+auto XmlParserHelper::getAttrib<BaseViewType>(std::u8string_view name, const AttributeMap& attributeMap)
+        -> std::optional<BaseViewType> {
+    return attributeMap[name];
+}
 
 template <>
 auto XmlParserHelper::getAttrib<std::u8string_view>(std::u8string_view name, const AttributeMap& attributeMap)
         -> std::optional<std::u8string_view> {
-    return attributeMap[name];
+    const auto optSV = attributeMap[name];
+    if (optSV) {
+        return optSV->sv();
+    } else {
+        return std::nullopt;
+    }
 }
 
 template <>
@@ -75,7 +70,7 @@ auto XmlParserHelper::getAttrib<LineStyle>(std::u8string_view name, const Attrib
     if (optSV) {
         // With lots of efforts, we could avoid a copy here, but this attribute likely does
         // not show up often in regular files.
-        return StrokeStyle::parseStyle(std::string{char_cast(*optSV)});
+        return StrokeStyle::parseStyle(std::string{char_cast(optSV->sv())});
     } else {
         return std::nullopt;
     }
