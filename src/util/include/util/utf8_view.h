@@ -60,11 +60,8 @@ struct utf8_view: std::ranges::view_interface<utf8_view<InputIterator, InputSent
         return std::u8string_view(reinterpret_cast<const char8_t*>(b.it), reinterpret_cast<const char8_t*>(e.it));
     }
 
-    constexpr auto c_str() const -> const char8_t*
-        requires(std::same_as<Sentinel, SentinelImpl> && InputSentinel{} == u8"")
-    {
-        return static_cast<const char8_t*>(beginI);
-    }
+    constexpr auto c_str() const -> const char8_t* requires(std::same_as<Sentinel, SentinelImpl>&& InputSentinel{} ==
+                                                            u8"") { return static_cast<const char8_t*>(beginI); }
 
     explicit operator fs::path() const {
         // c++ has no fs::path constructor using iterator and sentinel.
