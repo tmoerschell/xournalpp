@@ -78,7 +78,7 @@ public:
 
 public:
     // interface for XmlParser
-    void addDocument(std::string creator, int fileVersion);
+    void addDocument(std::u8string creator, int fileVersion);
     void finalizeDocument();
     void addPage(double width, double height);
     void finalizePage();
@@ -89,7 +89,7 @@ public:
     void setBgPixmapCloned(size_t pageNr);
     void setBgPdf(size_t pageno);
     void loadBgPdf(bool attach, const fs::path& filename);
-    void addLayer(const std::optional<std::string_view>& name);
+    void addLayer(const std::optional<std::u8string_view>& name);
     void finalizeLayer();
     void addStroke(StrokeTool tool, Color color, double width, int fill, StrokeCapStyle capStyle,
                    const LineStyle& lineStyle, fs::path filename, size_t timestamp);
@@ -173,7 +173,7 @@ private:
     bool attachedPdfMissing;
     bool pdfFilenameParsed;
 
-    std::string creator;
+    std::u8string creator;
     int fileVersion;
     int minimalFileVersion;
 

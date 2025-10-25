@@ -80,7 +80,7 @@ auto LoadHandler::getMissingPdfFilename() const -> const fs::path& { return this
 
 auto LoadHandler::getFileVersion() const -> int { return this->fileVersion; }
 
-void LoadHandler::addDocument(std::string creator, int fileVersion) {
+void LoadHandler::addDocument(std::u8string creator, int fileVersion) {
     this->creator = std::move(creator);
     if (this->isGzFile) {
         this->fileVersion = fileVersion;
@@ -290,12 +290,12 @@ void LoadHandler::loadBgPdf(bool attach, const fs::path& filename) {
     this->pdfFilenameParsed = true;
 }
 
-void LoadHandler::addLayer(const std::optional<std::string_view>& name) {
+void LoadHandler::addLayer(const std::optional<std::u8string_view>& name) {
     xoj_assert(!this->layer);
     this->layer = std::make_unique<Layer>();
 
     if (name) {
-        this->layer->setName(std::string{*name});
+        this->layer->setName(std::string{char_cast(*name)});
     }
 }
 

@@ -7,6 +7,8 @@
 
 #include "util/ViewIteratorBase.h"
 
+#include "filesystem.h"
+
 namespace xoj::util {
 template <std::input_iterator InputIterator, std::sentinel_for<InputIterator> InputSentinel>
 struct utf8_view: std::ranges::view_interface<utf8_view<InputIterator, InputSentinel>> {
@@ -51,6 +53,11 @@ struct utf8_view: std::ranges::view_interface<utf8_view<InputIterator, InputSent
         // todo(cpp23) use std::u8string(std::from_range_t, ...)
         auto [b, e] = toIteratorPair();
         return std::u8string(b, e);
+    }
+
+    constexpr auto sv() const -> std::u8string_view {
+        auto [b, e] = toIteratorPair();
+        return std::u8string_view(reinterpret_cast<const char8_t*>(b.it), reinterpret_cast<const char8_t*>(e.it));
     }
 
     explicit operator fs::path() const {

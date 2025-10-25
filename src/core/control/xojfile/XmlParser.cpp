@@ -21,7 +21,7 @@
 #include "util/Assert.h"                       // for xoj_assert
 #include "util/Color.h"                        // for Color
 #include "util/EnumIndexedArray.h"             // for EnumIndexedArray
-#include "util/Util.h"                         // for SV_FMT, SV_ARG
+#include "util/StringUtils.h"                  // for char_cast, SV_FMT, ...
 #include "util/safe_casts.h"                   // for as_unsigned
 
 #include "filesystem.h"  // for path
@@ -53,7 +53,7 @@ static auto isAllWhitespace(T string) -> bool {
  * @param end   Pointer to one character past the end of the string
  * @param value Output parameter for the parsed value
  */
-static bool parseDouble(const char*& it, const char* end, double& value) {
+static bool parseDouble(const char8_t*& it, const char8_t* end, double& value) {
     // Skip any leading whitespace
     while (it != end && *it == ' ') {
         ++it;
@@ -66,12 +66,12 @@ static bool parseDouble(const char*& it, const char* end, double& value) {
 
 #if HAS_FLOAT_FROM_CHARS
     // Parse double
-    const auto [ptr, ec] = std::from_chars(it, end, value);
+    const auto [ptr, ec] = std::from_chars(char_cast(it), char_cast(end), value);
     if (ec != std::errc{}) {
         g_warning("XML parser: Error parsing a double:\n"
                   "\"%s\"\n"
                   "Remaining string: \"" SV_FMT "\"",
-                  std::make_error_condition(ec).message().c_str(), SV_ARG(std::string_view(it, as_unsigned(end - it))));
+                  std::make_error_condition(ec).message().c_str(), U8SV_ARG(std::u8string_view(it, end)));
         return false;
     }
 #else
@@ -79,16 +79,16 @@ static bool parseDouble(const char*& it, const char* end, double& value) {
     // with the current implementation of GMarkup, which is unlikely to change.
     xoj_assert(*end == '\0');
     char* ptr = nullptr;
-    value = g_ascii_strtod(it, &ptr);
-    if (ptr == it) {
+    value = g_ascii_strtod(char_cast(it), &ptr);
+    if (ptr == char_cast(it)) {
         g_warning("XML parser: Error parsing a double. Remaining string: \"" SV_FMT "\"",
-                  SV_ARG(std::string_view(it, as_unsigned(end - it))));
+                  U8SV_ARG(std::u8string_view(it, end)));
         return false;
     }
 #endif  // HAS_FLOAT_FROM_CHARS
 
     // Update start pointer and return
-    it = ptr;
+    it = reinterpret_cast<const char8_t*>(ptr);
     return true;
 }
 
@@ -97,7 +97,7 @@ void XmlParser::parserStartElement(GMarkupParseContext* context, const gchar* el
     auto self = static_cast<XmlParser*>(userdata);
     xoj_assert(self);
 
-    const auto tagType = self->getTagType(elementName);
+    const auto tagType = self->getTagType(xoj::util::utf8(elementName).sv());
 
     // Check for unknown tags
     if (tagType == TagType::UNKNOWN) {
@@ -107,7 +107,8 @@ void XmlParser::parserStartElement(GMarkupParseContext* context, const gchar* el
             }
             // If the hierarchy is empty, we will attempt parsing it anyways
         } else {
-            g_warning("Ignoring unexpected %s tag under " SV_FMT, elementName, SV_ARG(TAG_NAMES[*self->lastValidTag]));
+            g_warning("Ignoring unexpected %s tag under " SV_FMT, elementName,
+                      U8SV_ARG(TAG_NAMES[*self->lastValidTag]));
         }
     }
 
@@ -131,7 +132,7 @@ void XmlParser::parserEndElement(GMarkupParseContext* context, const gchar* elem
     // GMarkup should have already risen an error if there was an error in the document structure.
     xoj_assert(!self->hierarchy.empty());
     const auto tagType = self->hierarchy.back();
-    xoj_assert(TAG_NAMES[tagType] == elementName || tagType == TagType::UNKNOWN);
+    xoj_assert(TAG_NAMES[tagType] == xoj::util::utf8(elementName).sv() || tagType == TagType::UNKNOWN);
 
     // Check for unknown tags
     if (tagType == TagType::UNKNOWN && self->hierarchy.size() == 1) {
@@ -161,12 +162,12 @@ void XmlParser::parserText(GMarkupParseContext* context, const gchar* text, gsiz
     auto self = static_cast<XmlParser*>(userdata);
     xoj_assert(self);
 
-    const auto textSV = std::string_view{text, textLen};
+    const auto textSV = xoj::util::utf8_view(text, text + textLen).sv();
 
     // Check for text at document root
     if (self->hierarchy.empty()) {
         if (!isAllWhitespace(textSV)) {
-            g_warning("Ignoring unexpected text at document root: \"" SV_FMT "\"", SV_ARG(textSV));
+            g_warning("Ignoring unexpected text at document root: \"" SV_FMT "\"", U8SV_ARG(textSV));
         }
         return;
     }
@@ -179,7 +180,7 @@ void XmlParser::parserText(GMarkupParseContext* context, const gchar* text, gsiz
         // we always get the whole text in a single callback.
         (self->*parsingTable[tagType].text)(textSV);
     } else if (tagType != TagType::TITLE && tagType != TagType::PREVIEW && !isAllWhitespace(textSV)) {
-        g_warning("Unexpected text in " SV_FMT " node: \"" SV_FMT "\"", SV_ARG(TAG_NAMES[tagType]), SV_ARG(textSV));
+        g_warning("Unexpected text in " SV_FMT " node: \"" SV_FMT "\"", U8SV_ARG(TAG_NAMES[tagType]), U8SV_ARG(textSV));
     }
 }
 
@@ -191,24 +192,25 @@ void XmlParser::parseUnknownTag(const XmlParserHelper::AttributeMap& attributeMa
     if (this->hierarchy.empty()) {
         // Unknown tag at document root. Assume it's another application (like Xournal++ or MrWriter) that has
         // its own tag name, but a similar structure. Attempt parsing anyways.
-        this->handler.addDocument("Unknown", 1);
+        this->handler.addDocument(u8"Unknown", 1);
         g_warning("Attempting to parse unknown document type.");
     }
 }
 
 void XmlParser::parseXournalTag(const XmlParserHelper::AttributeMap& attributeMap) {
-    const auto optCreator = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::CREATOR_STR, attributeMap);
-    std::string creator;
+    const auto optCreator = XmlParserHelper::getAttrib<std::u8string_view>(xoj::xml_attrs::CREATOR_STR, attributeMap);
+    std::u8string creator;
     if (optCreator) {
         creator = *optCreator;
     } else {
         // Compatibility: the creator attribute exists since 7017b71. Before that, only a version string was written
-        const auto optVersion = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::VERSION_STR, attributeMap);
+        const auto optVersion =
+                XmlParserHelper::getAttrib<std::u8string_view>(xoj::xml_attrs::VERSION_STR, attributeMap);
         if (optVersion) {
-            creator = "Xournal ";
+            creator = u8"Xournal ";
             creator += *optVersion;
         } else {
-            creator = "Unknown";
+            creator = u8"Unknown";
         }
     }
 
@@ -220,13 +222,13 @@ void XmlParser::parseXournalTag(const XmlParserHelper::AttributeMap& attributeMa
 }
 
 void XmlParser::parseMrWriterTag(const XmlParserHelper::AttributeMap& attributeMap) {
-    auto optVersion = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::VERSION_STR, attributeMap);
-    std::string creator;
+    auto optVersion = XmlParserHelper::getAttrib<std::u8string_view>(xoj::xml_attrs::VERSION_STR, attributeMap);
+    std::u8string creator;
     if (optVersion) {
-        creator = "MrWriter ";
+        creator = u8"MrWriter ";
         creator += *optVersion;
     } else {
-        creator = "Unknown";
+        creator = u8"Unknown";
     }
 
     this->handler.addDocument(std::move(creator), 1);
@@ -246,12 +248,12 @@ void XmlParser::parseAudioTag(const XmlParserHelper::AttributeMap& attributeMap)
 }
 
 void XmlParser::parseBackgroundTag(const XmlParserHelper::AttributeMap& attributeMap) {
-    auto name = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::NAME_STR, attributeMap);
+    auto name = XmlParserHelper::getAttrib<std::u8string_view>(xoj::xml_attrs::NAME_STR, attributeMap);
     using xoj::xml_attrs::BackgroundType;
     const auto optType = XmlParserHelper::getAttrib<BackgroundType>(xoj::xml_attrs::TYPE_STR, attributeMap);
 
     if (name) {
-        this->handler.setBgName(std::string{*name});
+        this->handler.setBgName(std::string{char_cast(*name)});
     }
     if (optType) {
         switch (*optType) {
@@ -275,14 +277,14 @@ void XmlParser::parseBackgroundTag(const XmlParserHelper::AttributeMap& attribut
 }
 
 void XmlParser::parseBgSolid(const XmlParserHelper::AttributeMap& attributeMap) {
-    const auto optStyle = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::STYLE_STR, attributeMap);
-    const auto config =
-            XmlParserHelper::getAttribMandatory<std::string_view>(xoj::xml_attrs::CONFIG_STR, attributeMap, "", false);
+    const auto optStyle = XmlParserHelper::getAttrib<std::u8string_view>(xoj::xml_attrs::STYLE_STR, attributeMap);
+    const auto config = XmlParserHelper::getAttribMandatory<std::u8string_view>(xoj::xml_attrs::CONFIG_STR,
+                                                                                attributeMap, u8"", false);
     PageType bg;
     if (optStyle) {
-        bg.format = PageTypeHandler::getPageTypeFormatForString(*optStyle);
+        bg.format = PageTypeHandler::getPageTypeFormatForString(char_cast(*optStyle));
     }
-    bg.config = config;
+    bg.config = char_cast(config);
 
     const auto color = XmlParserHelper::getAttribColorMandatory(attributeMap, Colors::white, true);
 
@@ -295,7 +297,7 @@ void XmlParser::parseBgPixmap(const XmlParserHelper::AttributeMap& attributeMap)
 
     if (domain != xoj::xml_attrs::Domain::CLONE) {
         const fs::path filename =
-                XmlParserHelper::getAttribMandatory<std::string_view>(xoj::xml_attrs::FILENAME_STR, attributeMap);
+                XmlParserHelper::getAttribMandatory<fs::path>(xoj::xml_attrs::FILENAME_STR, attributeMap);
         this->handler.setBgPixmap(domain == xoj::xml_attrs::Domain::ATTACH, filename);
     } else {
         // In case of a cloned background image, filename contains the page
@@ -331,7 +333,7 @@ void XmlParser::parseBgPdf(const XmlParserHelper::AttributeMap& attributeMap) {
 }
 
 void XmlParser::parseLayerTag(const XmlParserHelper::AttributeMap& attributeMap) {
-    const auto name = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::NAME_STR, attributeMap);
+    const auto name = XmlParserHelper::getAttrib<std::u8string_view>(xoj::xml_attrs::NAME_STR, attributeMap);
 
     this->handler.addLayer(name);
 }
@@ -357,14 +359,15 @@ void XmlParser::parseStrokeTag(const XmlParserHelper::AttributeMap& attributeMap
     const auto color = XmlParserHelper::getAttribColorMandatory(attributeMap, Colors::black);
 
     // width
-    auto widthSV = XmlParserHelper::getAttribMandatory<std::string_view>(xoj::xml_attrs::WIDTH_STR, attributeMap, "1");
+    auto widthSV =
+            XmlParserHelper::getAttribMandatory<std::u8string_view>(xoj::xml_attrs::WIDTH_STR, attributeMap, u8"1");
     auto it = widthSV.begin();
     auto end = widthSV.end();
     double width{};
     parseDouble(it, end, width);
 
     // pressures
-    auto pressureSV = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::PRESSURES_STR, attributeMap);
+    auto pressureSV = XmlParserHelper::getAttrib<std::u8string_view>(xoj::xml_attrs::PRESSURES_STR, attributeMap);
     if (pressureSV) {
         // MrWriter writes pressures in a separate field
         it = pressureSV->begin();
@@ -407,7 +410,7 @@ void XmlParser::parseStrokeTag(const XmlParserHelper::AttributeMap& attributeMap
     this->tempTimestamp = 0;
 }
 
-void XmlParser::parseStrokeText(std::string_view text) {
+void XmlParser::parseStrokeText(std::u8string_view text) {
     std::vector<Point> pointVector;
     pointVector.reserve(this->pressureBuffer.size());
 
@@ -422,7 +425,8 @@ void XmlParser::parseStrokeText(std::string_view text) {
 }
 
 void XmlParser::parseTextTag(const XmlParserHelper::AttributeMap& attributeMap) {
-    auto font = XmlParserHelper::getAttribMandatory<std::string_view>(xoj::xml_attrs::FONT_STR, attributeMap, "Sans");
+    auto font =
+            XmlParserHelper::getAttribMandatory<std::u8string_view>(xoj::xml_attrs::FONT_STR, attributeMap, u8"Sans");
     const auto size = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::SIZE_STR, attributeMap, 12);
     const auto x = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::X_COORD_STR, attributeMap);
     const auto y = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::Y_COORD_STR, attributeMap);
@@ -439,12 +443,12 @@ void XmlParser::parseTextTag(const XmlParserHelper::AttributeMap& attributeMap) 
                 XmlParserHelper::getAttribMandatory<size_t>(xoj::xml_attrs::TIMESTAMP_STR, attributeMap, 0UL);
     }
 
-    this->handler.addText(std::string{font}, size, x, y, color, std::move(tempFilename), tempTimestamp);
+    this->handler.addText(std::string{char_cast(font)}, size, x, y, color, std::move(tempFilename), tempTimestamp);
 
     this->tempTimestamp = 0;
 }
 
-void XmlParser::parseTextText(std::string_view text) { this->handler.setTextContents(std::string{text}); }
+void XmlParser::parseTextText(std::u8string_view text) { this->handler.setTextContents(std::string{char_cast(text)}); }
 
 void XmlParser::parseImageTag(const XmlParserHelper::AttributeMap& attributeMap) {
     const auto left = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::LEFT_POS_STR, attributeMap);
@@ -455,7 +459,7 @@ void XmlParser::parseImageTag(const XmlParserHelper::AttributeMap& attributeMap)
     this->handler.addImage(left, top, right, bottom);
 }
 
-void XmlParser::parseImageText(std::string_view text) {
+void XmlParser::parseImageText(std::u8string_view text) {
     if (!isAllWhitespace(text)) {
         std::string imageData = XmlParserHelper::decodeBase64(text);
         this->handler.setImageData(std::move(imageData));
@@ -468,14 +472,14 @@ void XmlParser::parseTexImageTag(const XmlParserHelper::AttributeMap& attributeM
     const auto right = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::RIGHT_POS_STR, attributeMap);
     const auto bottom = XmlParserHelper::getAttribMandatory<double>(xoj::xml_attrs::BOTTOM_POS_STR, attributeMap);
 
-    auto text = XmlParserHelper::getAttribMandatory<std::string_view>(xoj::xml_attrs::TEXT_STR, attributeMap);
+    auto text = XmlParserHelper::getAttribMandatory<std::u8string_view>(xoj::xml_attrs::TEXT_STR, attributeMap);
 
     // Attribute "texlength" found in earlier parsers was a workaround from 098a67b to bdd0ec2
 
-    this->handler.addTexImage(left, top, right, bottom, std::string{text});
+    this->handler.addTexImage(left, top, right, bottom, std::string{char_cast(text)});
 }
 
-void XmlParser::parseTexImageText(std::string_view text) {
+void XmlParser::parseTexImageText(std::u8string_view text) {
     if (!isAllWhitespace(text)) {
         std::string imageData = XmlParserHelper::decodeBase64(text);
         this->handler.setTexImageData(std::move(imageData));
@@ -494,12 +498,12 @@ void XmlParser::parseAttachmentTag(const XmlParserHelper::AttributeMap& attribut
             this->handler.setTexImageAttachment(path);
             break;
         default:
-            g_warning("Ignoring attachment tag under " SV_FMT, SV_ARG(TAG_NAMES[*this->lastValidTag]));
+            g_warning("Ignoring attachment tag under " SV_FMT, U8SV_ARG(TAG_NAMES[*this->lastValidTag]));
             break;
     }
 }
 
-auto XmlParser::getTagType(std::string_view name) const -> TagType {
+auto XmlParser::getTagType(std::u8string_view name) const -> TagType {
     using namespace std::literals;
 
     if (this->hierarchy.empty()) {

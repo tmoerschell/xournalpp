@@ -27,8 +27,10 @@
 
 #include "util/Assert.h"
 #include "util/Color.h"
+#include "util/StringUtils.h"
 #include "util/Util.h"
 #include "util/serdesstream.h"
+#include "util/utf8_view.h"
 
 #include "filesystem.h"
 
@@ -50,11 +52,11 @@ public:
      * Look up `name` in the attribute map
      * @return The matching value, or std::nullopt if it was not found.
      */
-    std::optional<std::string_view> operator[](const std::string_view name) const;
+    std::optional<std::u8string_view> operator[](const std::u8string_view name) const;
 
 private:
-    std::vector<std::string_view> names;
-    std::vector<std::string_view> values;
+    std::vector<std::u8string_view> names;
+    std::vector<std::u8string_view> values;
 };
 
 // generic templates
@@ -63,32 +65,31 @@ private:
  * Look up an attribute and parse it as T if it was found.
  */
 template <typename T>
-std::optional<T> getAttrib(std::string_view name, const AttributeMap& attributeMap);
+std::optional<T> getAttrib(std::u8string_view name, const AttributeMap& attributeMap);
 /**
  * Look up an attribute and parse it as T. If the attribute was not found, use a default and optionally print a warning.
  */
 template <typename T>
-T getAttribMandatory(std::string_view name, const AttributeMap& attributeMap, const T& defaultValue = {},
+T getAttribMandatory(std::u8string_view name, const AttributeMap& attributeMap, const T& defaultValue = {},
                      bool warn = true);
 // specializations
 template <>
-std::optional<std::string_view> getAttrib<std::string_view>(std::string_view name, const AttributeMap& attributeMap);
+std::optional<std::u8string_view> getAttrib<std::u8string_view>(std::u8string_view name,
+                                                                const AttributeMap& attributeMap);
 template <>
-std::optional<fs::path> getAttrib<fs::path>(std::string_view name, const AttributeMap& attributeMap);
-template <>
-std::optional<LineStyle> getAttrib<LineStyle>(std::string_view name, const AttributeMap& attributeMap);
+std::optional<LineStyle> getAttrib<LineStyle>(std::u8string_view name, const AttributeMap& attributeMap);
 
 // "color" attribute
 Color getAttribColorMandatory(const AttributeMap& attributeMap, const Color& defaultValue, bool bg = false);
 // Attempt to match string with background-specific color "translations"
-std::optional<Color> parseBgColor(std::string_view sv);
+std::optional<Color> parseBgColor(std::u8string_view sv);
 // Parse str as a RGBA hex color code
-std::optional<Color> parseColorCode(std::string_view sv);
+std::optional<Color> parseColorCode(std::u8string_view sv);
 // Attempt to match string with predefined color names
-std::optional<Color> parsePredefinedColor(std::string_view sv);
+std::optional<Color> parsePredefinedColor(std::u8string_view sv);
 
 // Decode C-string of Base64 encoded data into a string of binary data
-std::string decodeBase64(std::string_view base64data);
+std::string decodeBase64(std::u8string_view base64data);
 
 namespace detail {
 
@@ -153,7 +154,7 @@ private:
 
 // Parse named enums
 template <typename T>
-T parse_enum(std::string_view sv) {
+T parse_enum(std::u8string_view sv) {
     static_assert(has_names_v<T>, "T must define a static T::NAMES array to perform lookup");
     static_assert(has_value_enum_v<T>, "T must define an underlying enum type T::Value");
 
@@ -168,16 +169,16 @@ T parse_enum(std::string_view sv) {
 
 // Parse numeric types
 template <typename T>
-T parse_numeric(std::string_view sv) {
+T parse_numeric(std::u8string_view sv) {
     static_assert(std::is_arithmetic_v<T>, "T must be numeric");
 
     T value{};
     if constexpr (std::is_integral_v<T> || HAS_FLOAT_FROM_CHARS) {
-        auto [ptr, ec] = std::from_chars(sv.begin(), sv.end(), value);
+        auto [ptr, ec] = std::from_chars(char_cast(sv.begin()), char_cast(sv.end()), value);
         if (ec != std::errc{}) {
             throw std::domain_error(std::make_error_condition(ec).message());
         }
-        if (ptr != sv.end()) {
+        if (ptr != char_cast(sv.end())) {
             throw IncompleteParseError(value);
         }
     } else {
@@ -185,9 +186,9 @@ T parse_numeric(std::string_view sv) {
         // Attributes originate from GMarkup and are nul-terminated
         xoj_assert(*sv.end() == '\0');
         char* end = nullptr;
-        value = static_cast<T>(g_ascii_strtod(sv.begin(), &end));
-        if (end != sv.end()) {
-            if (end == sv.begin()) {
+        value = static_cast<T>(g_ascii_strtod(char_cast(sv.begin()), &end));
+        if (end != char_cast(sv.end())) {
+            if (end == char_cast(sv.begin())) {
                 throw std::domain_error("g_ascii_strtod failed");
             } else {
                 throw IncompleteParseError(value);
@@ -210,14 +211,14 @@ std::istream& operator>>(std::istream& stream, LineStyle& style);
 // implementations of template functions
 
 template <typename T>
-auto XmlParserHelper::getAttrib(std::string_view name, const AttributeMap& attributeMap) -> std::optional<T> {
+auto XmlParserHelper::getAttrib(std::u8string_view name, const AttributeMap& attributeMap) -> std::optional<T> {
     auto optionalSV = attributeMap[name];  // mildly expensive operation: string search in array.
                                            // Use the operator[] only once and store the result.
     if (optionalSV) {
         try {
             // Choose appropriate parsing strategy
-            if constexpr (std::is_constructible_v<T, std::string_view>) {
-                return T{*optionalSV};  // Type is directly constructible from a string_view (e.g. std::string)
+            if constexpr (std::is_constructible_v<T, std::u8string_view>) {
+                return T{*optionalSV};  // Type is directly constructible from an std::u8string_view, e.g. fs::path
             } else if constexpr (detail::has_names_v<T> && detail::has_value_enum_v<T>) {
                 return detail::parse_enum<T>(*optionalSV);
             } else if constexpr (std::is_arithmetic_v<T>) {
@@ -227,11 +228,11 @@ auto XmlParserHelper::getAttrib(std::string_view name, const AttributeMap& attri
             }
         } catch (const std::domain_error& e) {
             g_warning("XML parser: Attribute \"" SV_FMT "\" could not be parsed as %s: %s. The value is \"" SV_FMT "\"",
-                      SV_ARG(name), Util::demangledTypeName<T>().c_str(), e.what(), SV_ARG(*optionalSV));
+                      U8SV_ARG(name), Util::demangledTypeName<T>().c_str(), e.what(), U8SV_ARG(*optionalSV));
             return std::nullopt;
         } catch (const detail::IncompleteParseError<T>& e) {
             g_warning("XML parser: Attribute \"" SV_FMT "\" was not entirely parsed as %s. The value is \"" SV_FMT "\"",
-                      SV_ARG(name), Util::demangledTypeName<T>().c_str(), SV_ARG(*optionalSV));
+                      U8SV_ARG(name), Util::demangledTypeName<T>().c_str(), U8SV_ARG(*optionalSV));
             return e.value();
         }
     } else {
@@ -240,24 +241,26 @@ auto XmlParserHelper::getAttrib(std::string_view name, const AttributeMap& attri
 }
 
 template <typename T>
-auto XmlParserHelper::getAttribMandatory(std::string_view name, const AttributeMap& attributeMap, const T& defaultValue,
-                                         bool warn) -> T {
+auto XmlParserHelper::getAttribMandatory(std::u8string_view name, const AttributeMap& attributeMap,
+                                         const T& defaultValue, bool warn) -> T {
     auto optionalInt = getAttrib<T>(name, attributeMap);
     if (optionalInt) {
         return *optionalInt;
     } else {
         if (warn) {
-            std::string defaultValueStr;
-            if constexpr (detail::has_names_v<T> && detail::has_value_enum_v<T>) {
+            std::u8string defaultValueStr;
+            if constexpr (std::same_as<T, std::u8string_view>) {
+                defaultValueStr = defaultValue;
+            } else if constexpr (detail::has_names_v<T> && detail::has_value_enum_v<T>) {
                 xoj_assert(defaultValue < T::NAMES.size());
                 defaultValueStr = T::NAMES[defaultValue];
             } else {
                 auto stream = serdes_stream<std::ostringstream>();
                 stream << defaultValue;
-                defaultValueStr = stream.str();
+                defaultValueStr = xoj::util::utf8(stream.str()).str();
             }
             g_warning("XML parser: Mandatory attribute \"" SV_FMT "\" not found. Using default value \"%s\"",
-                      SV_ARG(name), defaultValueStr.c_str());
+                      U8SV_ARG(name), char_cast(defaultValueStr.c_str()));
         }
         return defaultValue;
     }

@@ -22,6 +22,7 @@
 #include "control/xojfile/XmlParserHelper.h"
 #include "control/xojfile/XmlTags.h"
 #include "util/EnumIndexedArray.h"
+#include "util/StringUtils.h"
 
 #include "filesystem.h"
 
@@ -53,13 +54,13 @@ private:
     void parseLayerTag(const XmlParserHelper::AttributeMap& attributeMap);
     void parseTimestampTag(const XmlParserHelper::AttributeMap& attributeMap);
     void parseStrokeTag(const XmlParserHelper::AttributeMap& attributeMap);
-    void parseStrokeText(std::string_view text);
+    void parseStrokeText(std::u8string_view text);
     void parseTextTag(const XmlParserHelper::AttributeMap& attributeMap);
-    void parseTextText(std::string_view text);
+    void parseTextText(std::u8string_view text);
     void parseImageTag(const XmlParserHelper::AttributeMap& attributeMap);
-    void parseImageText(std::string_view text);
+    void parseImageText(std::u8string_view text);
     void parseTexImageTag(const XmlParserHelper::AttributeMap& attributeMap);
-    void parseTexImageText(std::string_view text);
+    void parseTexImageText(std::u8string_view text);
     void parseAttachmentTag(const XmlParserHelper::AttributeMap& attributeMap);
 
     /**
@@ -69,10 +70,10 @@ private:
      * the last valid tag type. Otherwise it returns TagType::UNKNOWN, even if
      * the tag is globally known (e.g. if a page is found under a layer).
      */
-    xoj::xml_tags::Type getTagType(std::string_view name) const;
+    xoj::xml_tags::Type getTagType(std::u8string_view name) const;
 
     using StartElementFunc = void (XmlParser::*)(const XmlParserHelper::AttributeMap&);
-    using TextFunc = void (XmlParser::*)(std::string_view);
+    using TextFunc = void (XmlParser::*)(std::u8string_view);
     using EndElementFunc = void (LoadHandler::*)();
     struct ParsingEntry {
         StartElementFunc start;
